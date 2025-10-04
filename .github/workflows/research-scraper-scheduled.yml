@@ -1,0 +1,285 @@
+name: Scheduled Research Scraper
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      scraper_type:
+        description: 'Type of scraper to run'
+        required: true
+        type: choice
+        options:
+          - github_repo
+          - github_issue
+          - github_user
+          - all
+        default: 'all'
+      target:
+        description: 'Target (repo owner/name, username, etc.)'
+        required: false
+        type: string
+      linear_task_id:
+        description: 'Linear task ID to update with results'
+        required: false
+        type: string
+      update_linear:
+        description: 'Update Linear with results'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write  # Required for OIDC authentication
+
+env:
+  PYTHON_VERSION: '3.11'
+  CACHE_KEY_PREFIX: 'research-scraper-v1'
+
+jobs:
+  setup:
+    name: Setup and Validation
+    runs-on: ubuntu-latest
+    outputs:
+      scraper_type: ${{ steps.config.outputs.scraper_type }}
+      target: ${{ steps.config.outputs.target }}
+      linear_task_id: ${{ steps.config.outputs.linear_task_id }}
+      update_linear: ${{ steps.config.outputs.update_linear }}
+      run_id: ${{ steps.config.outputs.run_id }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Configure execution parameters
+        id: config
+        run: |
+          # Set default values or use workflow inputs
+          SCRAPER_TYPE="${{ github.event.inputs.scraper_type || 'all' }}"
+          TARGET="${{ github.event.inputs.target || '' }}"
+          LINEAR_TASK_ID="${{ github.event.inputs.linear_task_id || '' }}"
+          UPDATE_LINEAR="${{ github.event.inputs.update_linear || 'true' }}"
+          RUN_ID="run-$(date +%Y%m%d-%H%M%S)-${{ github.run_number }}"
+          
+          echo "scraper_type=${SCRAPER_TYPE}" >> $GITHUB_OUTPUT
+          echo "target=${TARGET}" >> $GITHUB_OUTPUT
+          echo "linear_task_id=${LINEAR_TASK_ID}" >> $GITHUB_OUTPUT
+          echo "update_linear=${UPDATE_LINEAR}" >> $GITHUB_OUTPUT
+          echo "run_id=${RUN_ID}" >> $GITHUB_OUTPUT
+          
+          echo "::notice::Configured scraper run: ${SCRAPER_TYPE} for ${TARGET:-default}"
+      
+      - name: Validate secrets
+        run: |
+          # Check for required secrets (without exposing them)
+          if [ -z "${{ secrets.GITHUB_TOKEN }}" ]; then
+            echo "::error::GITHUB_TOKEN secret not configured"
+            exit 1
+          fi
+          
+          if [ "${{ steps.config.outputs.update_linear }}" == "true" ]; then
+            if [ -z "${{ secrets.LINEAR_API_KEY }}" ]; then
+              echo "::warning::LINEAR_API_KEY not configured, Linear updates will be skipped"
+            fi
+          fi
+          
+          echo "::notice::Secret validation completed"
+
+  run-scrapers:
+    name: Execute Research Scrapers
+    runs-on: ubuntu-latest
+    needs: setup
+    strategy:
+      fail-fast: false
+      matrix:
+        scraper: 
+          - ${{ needs.setup.outputs.scraper_type == 'all' && 'github_repo' || needs.setup.outputs.scraper_type }}
+          - ${{ needs.setup.outputs.scraper_type == 'all' && 'github_issue' || '' }}
+          - ${{ needs.setup.outputs.scraper_type == 'all' && 'github_user' || '' }}
+        exclude:
+          - scraper: ''
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install -r requirements-linear.txt || echo "Optional Linear dependencies not found"
+      
+      - name: Create output directories
+        run: |
+          mkdir -p output logs cache artifacts
+          chmod 700 output logs cache artifacts
+      
+      - name: Run scraper - ${{ matrix.scraper }}
+        id: scraper
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LOG_LEVEL: INFO
+          RUN_ID: ${{ needs.setup.outputs.run_id }}
+        run: |
+          echo "::group::Running ${{ matrix.scraper }}"
+          
+          # Set scraper-specific parameters
+          SCRAPER_SCRIPT="${{ matrix.scraper }}.py"
+          OUTPUT_FILE="output/${{ matrix.scraper }}_${RUN_ID}.json"
+          LOG_FILE="logs/${{ matrix.scraper }}_${RUN_ID}.log"
+          
+          # Execute scraper with error handling
+          if [ -f "${SCRAPER_SCRIPT}" ]; then
+            python "${SCRAPER_SCRIPT}" \
+              --output "${OUTPUT_FILE}" \
+              --log "${LOG_FILE}" \
+              ${{ needs.setup.outputs.target && format('--target {0}', needs.setup.outputs.target) || '' }} \
+              2>&1 | tee -a "${LOG_FILE}"
+            
+            SCRAPER_EXIT_CODE=${PIPESTATUS[0]}
+            
+            if [ ${SCRAPER_EXIT_CODE} -eq 0 ]; then
+              echo "status=success" >> $GITHUB_OUTPUT
+              echo "output_file=${OUTPUT_FILE}" >> $GITHUB_OUTPUT
+              echo "::notice::Scraper ${{ matrix.scraper }} completed successfully"
+            else
+              echo "status=failed" >> $GITHUB_OUTPUT
+              echo "::error::Scraper ${{ matrix.scraper }} failed with exit code ${SCRAPER_EXIT_CODE}"
+            fi
+          else
+            echo "::error::Scraper script ${SCRAPER_SCRIPT} not found"
+            echo "status=skipped" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "::endgroup::"
+      
+      - name: Validate output
+        if: steps.scraper.outputs.status == 'success'
+        run: |
+          OUTPUT_FILE="${{ steps.scraper.outputs.output_file }}"
+          
+          if [ -f "${OUTPUT_FILE}" ]; then
+            # Validate JSON structure
+            if python -m json.tool "${OUTPUT_FILE}" > /dev/null 2>&1; then
+              FILE_SIZE=$(stat -f%z "${OUTPUT_FILE}" 2>/dev/null || stat -c%s "${OUTPUT_FILE}")
+              echo "::notice::Output validated: ${OUTPUT_FILE} (${FILE_SIZE} bytes)"
+            else
+              echo "::error::Invalid JSON output in ${OUTPUT_FILE}"
+              exit 1
+            fi
+          else
+            echo "::error::Output file ${OUTPUT_FILE} not found"
+            exit 1
+          fi
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scraper-results-${{ matrix.scraper }}-${{ needs.setup.outputs.run_id }}
+          path: |
+            output/*.json
+            logs/*.log
+          retention-days: 30
+          compression-level: 9
+      
+      - name: Generate summary
+        if: steps.scraper.outputs.status == 'success'
+        run: |
+          echo "## Scraper Results: ${{ matrix.scraper }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ✅ Success" >> $GITHUB_STEP_SUMMARY
+          echo "- **Output**: \`${{ steps.scraper.outputs.output_file }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Run ID**: \`${{ needs.setup.outputs.run_id }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+
+  update-linear:
+    name: Update Linear Tasks
+    runs-on: ubuntu-latest
+    needs: [setup, run-scrapers]
+    if: needs.setup.outputs.update_linear == 'true' && !cancelled()
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install Linear integration dependencies
+        run: |
+          pip install -r requirements-linear.txt
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+      
+      - name: Update Linear task
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          LINEAR_TASK_ID: ${{ needs.setup.outputs.linear_task_id }}
+          RUN_ID: ${{ needs.setup.outputs.run_id }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python scripts/update_linear_task.py \
+            --artifacts-dir artifacts/ \
+            --task-id "${LINEAR_TASK_ID}" \
+            --run-id "${RUN_ID}" \
+            --workflow-url "${WORKFLOW_URL}"
+      
+      - name: Post status to Linear
+        if: always()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          python scripts/post_linear_status.py \
+            --status "${{ job.status }}" \
+            --run-id "${{ needs.setup.outputs.run_id }}"
+
+  notification:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [setup, run-scrapers, update-linear]
+    if: always()
+    
+    steps:
+      - name: Prepare notification
+        run: |
+          STATUS="${{ needs.run-scrapers.result }}"
+          LINEAR_STATUS="${{ needs.update-linear.result }}"
+          
+          if [ "${STATUS}" == "success" ] && [ "${LINEAR_STATUS}" == "success" ]; then
+            echo "NOTIFICATION_TITLE=✅ Research Scraper Completed Successfully" >> $GITHUB_ENV
+            echo "NOTIFICATION_COLOR=success" >> $GITHUB_ENV
+          elif [ "${STATUS}" == "success" ]; then
+            echo "NOTIFICATION_TITLE=⚠️ Research Scraper Completed (Linear Update Failed)" >> $GITHUB_ENV
+            echo "NOTIFICATION_COLOR=warning" >> $GITHUB_ENV
+          else
+            echo "NOTIFICATION_TITLE=❌ Research Scraper Failed" >> $GITHUB_ENV
+            echo "NOTIFICATION_COLOR=failure" >> $GITHUB_ENV
+          fi
+      
+      - name: Create job summary
+        run: |
+          echo "# ${{ env.NOTIFICATION_TITLE }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Run ID**: \`${{ needs.setup.outputs.run_id }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Scraper Type**: \`${{ needs.setup.outputs.scraper_type }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Target**: \`${{ needs.setup.outputs.target || 'default' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow**: [View Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Job Status" >> $GITHUB_STEP_SUMMARY
+          echo "- Scrapers: \`${{ needs.run-scrapers.result }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Linear Update: \`${{ needs.update-linear.result }}\`" >> $GITHUB_STEP_SUMMARY
