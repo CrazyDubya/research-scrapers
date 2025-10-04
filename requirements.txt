@@ -1,0 +1,54 @@
+# Core GitHub API and HTTP libraries
+requests>=2.31.0
+PyGithub>=2.1.1
+
+# Data processing and analysis
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Environment and configuration
+python-dotenv>=1.0.0
+
+# CLI interface
+click>=8.1.0
+
+# Progress bars and monitoring
+tqdm>=4.66.0
+
+# Rate limiting and retry logic
+ratelimit>=2.2.1
+backoff>=2.2.1
+
+# Data serialization
+pyyaml>=6.0
+
+# Date and time handling
+python-dateutil>=2.8.2
+
+# HTTP session management
+requests-cache>=1.1.0
+
+# JSON processing
+jsonlines>=4.0.0
+
+# Logging enhancements
+colorlog>=6.7.0
+
+# Data validation
+pydantic>=2.0.0
+
+# CSV and data export
+openpyxl>=3.1.0
+
+# Web scraping (if needed beyond API)
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# Async support (optional for concurrent requests)
+aiohttp>=3.9.0
+asyncio>=3.4.3
+
+# Testing dependencies
+pytest>=7.4.0
+pytest-cov>=4.1.0
+responses>=0.23.0
