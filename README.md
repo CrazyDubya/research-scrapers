@@ -1,442 +1,381 @@
-# Research Scrapers 🔍
+# Research Scrapers
 
-[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![GitHub Issues](https://img.shields.io/github/issues/CrazyDubya/research-scrapers)](https://github.com/CrazyDubya/research-scrapers/issues)
-[![GitHub Stars](https://img.shields.io/github/stars/CrazyDubya/research-scrapers)](https://github.com/CrazyDubya/research-scrapers/stargazers)
-[![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-A comprehensive Python toolkit for scraping GitHub data with robust rate limiting, error handling, and multiple output formats. Perfect for research, analytics, and data collection projects.
+A comprehensive toolkit for scraping and analyzing data from various research sources. This package provides a robust, extensible framework for web scraping with built-in rate limiting, error handling, and support for both static and JavaScript-heavy websites.
 
-## 🚀 Features
+## 🎆 Features
 
-- **🏢 Repository Analysis**: Complete repository metadata, statistics, commit history, and file structure
-- **🐛 Issue & PR Tracking**: Issues, pull requests, discussions with comments and reviews
-- **👥 User & Organization Profiles**: Comprehensive user data, activity, and social connections
-- **⚡ Rate Limiting**: Intelligent rate limiting with automatic backoff
-- **🛡️ Error Handling**: Robust error handling with retry mechanisms
-- **📊 Multiple Formats**: JSON, CSV, and pickle output formats
-- **🎯 Configurable**: Extensive configuration options for customized scraping
-- **📈 Progress Tracking**: Real-time progress bars and detailed logging
-- **🔧 CLI Interface**: User-friendly command-line interfaces for all scrapers
+- **Multiple Scraping Engines**: Support for both requests/BeautifulSoup and Selenium
+- **Rate Limiting**: Built-in rate limiting to respect website policies
+- **Error Handling**: Robust retry mechanisms with exponential backoff
+- **Configuration Management**: Flexible configuration via files, environment variables, or code
+- **Async Support**: Asynchronous scraping capabilities for high-performance scenarios
+- **Data Processing**: Utilities for cleaning, validating, and processing scraped data
+- **Extensible Architecture**: Easy to extend with custom scrapers for specific sites
+- **Comprehensive Logging**: Detailed logging for debugging and monitoring
+- **Testing Suite**: Full test coverage with pytest
 
-## 📦 Installation
+## 🚀 Quick Start
 
-### Prerequisites
-
-- Python 3.8 or higher
-- GitHub Personal Access Token (recommended for higher rate limits)
-
-### Quick Install
+### Installation
 
 ```bash
 # Clone the repository
 git clone https://github.com/CrazyDubya/research-scrapers.git
 cd research-scrapers
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up your GitHub token (optional but recommended)
-export GITHUB_TOKEN="your_github_token_here"
-```
-
-### Dependencies
-
-The toolkit uses several key libraries:
-
-- **requests** & **PyGithub**: GitHub API interaction
-- **pandas** & **numpy**: Data processing and analysis
-- **click**: Command-line interface
-- **tqdm**: Progress bars
-- **ratelimit** & **backoff**: Rate limiting and retry logic
-
-## 🎯 Quick Start
-
-### Repository Scraping
-
-```bash
-# Basic repository scraping
-python github_repo_scraper.py microsoft/vscode
-
-# Include commits and issues (comprehensive)
-python github_repo_scraper.py torvalds/linux --include-commits --include-issues
-
-# Custom output file
-python github_repo_scraper.py facebook/react --output react_analysis.json
-```
-
-### Issue & PR Scraping
-
-```bash
-# Scrape open issues
-python github_issue_scraper.py microsoft/vscode --type issues --state open
-
-# Scrape pull requests with reviews
-python github_issue_scraper.py facebook/react --type pulls --max-items 50
-
-# Filter by labels
-python github_issue_scraper.py torvalds/linux --type issues --labels bug,regression
-```
-
-### User & Organization Scraping
-
-```bash
-# Scrape user profile and activity
-python github_user_scraper.py torvalds
-
-# Organization with members
-python github_user_scraper.py microsoft --activity-days 7
-
-# Multiple users
-python github_user_scraper.py --multiple torvalds gvanrossum
-```
-
-## 📚 API Documentation
-
-### GitHubRepoScraper
-
-The main class for repository data extraction.
-
-```python
-from github_repo_scraper import GitHubRepoScraper, ScrapingOptions
-
-# Initialize scraper
-scraper = GitHubRepoScraper(token="your_token")
-
-# Configure scraping options
-options = ScrapingOptions(
-    include_commits=True,
-    include_issues=True,
-    max_commits=200,
-    max_issues=100,
-    output_format='json'
-)
-
-# Scrape repository
-data = scraper.scrape_repository("owner", "repo", options)
-```
-
-#### ScrapingOptions Configuration
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `include_metadata` | bool | True | Repository metadata and basic info |
-| `include_statistics` | bool | True | Commit activity and code frequency |
-| `include_commits` | bool | False | Commit history (can be large) |
-| `include_contributors` | bool | True | Contributor information |
-| `include_languages` | bool | True | Language breakdown |
-| `include_topics` | bool | True | Repository topics |
-| `include_releases` | bool | True | Release information |
-| `include_issues` | bool | False | Issues data (can be large) |
-| `include_pull_requests` | bool | False | Pull requests (can be large) |
-| `include_file_tree` | bool | True | File structure analysis |
-| `include_readme` | bool | True | README content |
-| `include_license` | bool | True | License information |
-| `max_commits` | int | 100 | Maximum commits to fetch |
-| `max_contributors` | int | 100 | Maximum contributors to fetch |
-| `max_releases` | int | 20 | Maximum releases to fetch |
-| `file_tree_depth` | int | 5 | File tree traversal depth |
-
-### GitHubIssueScraper
-
-Specialized scraper for issues, pull requests, and discussions.
-
-```python
-from github_issue_scraper import GitHubIssueScraper
-
-scraper = GitHubIssueScraper(token="your_token")
-
-# Scrape issues with filters
-issues_data = scraper.scrape_issues(
-    owner="microsoft",
-    repo="vscode",
-    state="open",
-    labels=["bug", "enhancement"],
-    max_items=100,
-    include_comments=True
-)
-
-# Scrape pull requests
-pr_data = scraper.scrape_pull_requests(
-    owner="facebook",
-    repo="react",
-    state="all",
-    include_reviews=True
-)
-```
-
-### GitHubUserScraper
-
-Comprehensive user and organization data extraction.
-
-```python
-from github_user_scraper import GitHubUserScraper
-
-scraper = GitHubUserScraper(token="your_token")
-
-# Comprehensive user scraping
-user_data = scraper.scrape_user_comprehensive(
-    username="torvalds",
-    include_activity=True,
-    activity_days=30
-)
-
-# Get specific data
-profile = scraper.get_user_profile("username")
-repos = scraper.get_user_repositories("username")
-followers = scraper.get_user_followers("username")
-```
-
-## ⚙️ Configuration
-
-### Environment Variables
-
-```bash
-# GitHub API token (recommended)
-export GITHUB_TOKEN="ghp_your_token_here"
-
-# Logging level
-export LOG_LEVEL="INFO"  # DEBUG, INFO, WARNING, ERROR
-```
-
-### Configuration File (config.py)
-
-The `config.py` file contains extensive configuration options:
-
-```python
-# Rate limiting
-DEFAULT_RATE_LIMIT = 1.0  # requests per second
-AUTHENTICATED_RATE_LIMIT = 5.0  # with token
-
-# Output settings
-OUTPUT_DIR = Path('./output')
-DEFAULT_OUTPUT_FORMAT = 'json'
-
-# Scraping defaults
-DEFAULT_MAX_COMMITS = 100
-DEFAULT_MAX_ISSUES = 100
-DEFAULT_PER_PAGE = 100
-
-# Feature flags
-SCRAPE_METADATA = True
-SCRAPE_COMMITS = False  # Large datasets
-ENABLE_CACHE = True
-SHOW_PROGRESS = True
-```
-
-### Custom Configuration
-
-```python
-from config import *
-
-# Override defaults
-DEFAULT_MAX_COMMITS = 500
-SCRAPE_COMMITS = True
-OUTPUT_DIR = Path('./my_data')
-```
-
-## 🏗️ Architecture
-
-### Core Components
-
-```
-research-scrapers/
-├── github_repo_scraper.py     # Repository data scraping
-├── github_issue_scraper.py    # Issues, PRs, discussions
-├── github_user_scraper.py     # User and organization data
-├── utils.py                   # Shared utilities and helpers
-├── config.py                  # Configuration management
-└── requirements.txt           # Dependencies
-```
-
-### Utility Functions (utils.py)
-
-The `utils.py` module provides shared functionality:
-
-- **RateLimiter**: Intelligent rate limiting with backoff
-- **APIResponseProcessor**: Response validation and processing
-- **DataFormatter**: Data cleaning and formatting
-- **FileManager**: File I/O operations
-- **DataValidator**: Input validation and sanitization
-
-### Data Flow
-
-```
-Input (Repository/User) → API Requests → Rate Limiting → 
-Data Processing → Validation → Output (JSON/CSV/Pickle)
-```
-
-## 🛠️ Advanced Usage
-
-### Batch Processing
-
-```python
-# Process multiple repositories
-repositories = [
-    ("microsoft", "vscode"),
-    ("facebook", "react"),
-    ("google", "tensorflow")
-]
-
-for owner, repo in repositories:
-    data = scraper.scrape_repository(owner, repo)
-    # Process data...
-```
-
-### Custom Data Processing
-
-```python
-from utils import DataFormatter, FileManager
-
-# Custom data transformation
-def process_commits(commits_data):
-    df = pd.DataFrame(commits_data)
-    # Custom analysis...
-    return df
-
-# Save in multiple formats
-FileManager.save_json(data, "output.json")
-FileManager.save_csv(flattened_data, "output.csv")
-```
-
-### Error Handling
-
-```python
-from utils import ScrapingError, APIError
-
-try:
-    data = scraper.scrape_repository("owner", "repo")
-except APIError as e:
-    print(f"API Error: {e}")
-except ScrapingError as e:
-    print(f"Scraping Error: {e}")
-```
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-#### Rate Limiting
-```bash
-# Error: Rate limit exceeded
-# Solution: Set GITHUB_TOKEN environment variable
-export GITHUB_TOKEN="your_token"
-
-# Or reduce rate in config.py
-DEFAULT_RATE_LIMIT = 0.5  # Slower requests
-```
-
-#### Authentication Issues
-```bash
-# Error: 401 Unauthorized
-# Check token validity
-curl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user
-```
-
-#### Large Datasets
-```bash
-# For large repositories, disable heavy operations
-python github_repo_scraper.py owner/repo --no-commits --no-issues --max-contributors 50
-```
-
-#### Memory Issues
-```python
-# Process data in chunks for large datasets
-options = ScrapingOptions(
-    max_commits=50,      # Reduce limits
-    max_issues=25,
-    include_file_tree=False  # Skip file tree for large repos
-)
-```
-
-### Debug Mode
-
-```bash
-# Enable verbose logging
-export LOG_LEVEL="DEBUG"
-python github_repo_scraper.py owner/repo --verbose
-```
-
-### Performance Optimization
-
-1. **Use Authentication**: Increases rate limits from 60 to 5000 requests/hour
-2. **Selective Scraping**: Only enable needed data sections
-3. **Caching**: Enable caching for repeated requests
-4. **Batch Processing**: Process multiple items efficiently
-
-## 🤝 Contributing
-
-We welcome contributions! Here's how to get started:
-
-### Development Setup
-
-```bash
-# Fork and clone the repository
-git clone https://github.com/yourusername/research-scrapers.git
-cd research-scrapers
-
 # Create virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install development dependencies
+# Install dependencies
 pip install -r requirements.txt
-pip install pytest pytest-cov black flake8
 
-# Run tests
-pytest tests/
-
-# Format code
-black *.py
+# Install in development mode
+pip install -e .
 ```
 
-### Contribution Guidelines
+### Basic Usage
 
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Write** tests for new functionality
-4. **Ensure** code passes all tests and linting
-5. **Commit** changes (`git commit -m 'Add amazing feature'`)
-6. **Push** to branch (`git push origin feature/amazing-feature`)
-7. **Open** a Pull Request
+```python
+from research_scrapers import WebScraper, Config
+from research_scrapers.utils import setup_logging, save_to_json
 
-### Code Style
+# Setup logging
+setup_logging(level='INFO')
 
-- Follow PEP 8 guidelines
-- Use type hints where possible
-- Add docstrings for all functions and classes
-- Write comprehensive tests
+# Create and configure scraper
+config = Config()
+config.RATE_LIMIT = 1.0  # 1 request per second
+scraper = WebScraper(config)
 
-### Reporting Issues
+# Scrape a webpage
+result = scraper.scrape('https://example.com')
 
-Please use the [GitHub Issues](https://github.com/CrazyDubya/research-scrapers/issues) page to report bugs or request features. Include:
+# Save results
+save_to_json(result, 'output/scraped_data.json')
 
-- Python version
-- Operating system
-- Error messages and stack traces
-- Steps to reproduce
+# Clean up
+scraper.close()
+```
 
-## 📄 License
+### Selenium for JavaScript Sites
+
+```python
+from research_scrapers.scraper import SeleniumScraper
+
+# Create Selenium scraper
+scraper = SeleniumScraper(browser='chrome', headless=True)
+
+# Scrape JavaScript-heavy site
+result = scraper.scrape(
+    'https://spa-example.com',
+    wait_for_element='.dynamic-content',
+    selector='.data-item'
+)
+
+scraper.close()
+```
+
+## 📁 Project Structure
+
+```
+research-scrapers/
+├── src/
+│   └── research_scrapers/
+│       ├── __init__.py
+│       ├── scraper.py          # Core scraping classes
+│       ├── utils.py            # Utility functions
+│       └── config.py           # Configuration management
+├── tests/
+│   ├── test_scraper.py
+│   ├── test_utils.py
+│   └── test_config.py
+├── docs/
+│   ├── getting-started.md
+│   ├── api-reference.md
+│   └── configuration.md
+├── scripts/
+│   ├── example_basic_scraping.py
+│   ├── example_selenium_scraping.py
+│   ├── example_batch_scraping.py
+│   └── setup.py
+├── requirements.txt
+├── setup.py
+├── .gitignore
+└── README.md
+```
+
+## 🔧 Configuration
+
+The package supports multiple configuration methods:
+
+### Environment Variables
+
+```bash
+export SCRAPER_REQUEST_TIMEOUT=60
+export SCRAPER_RATE_LIMIT=2.0
+export SCRAPER_LOG_LEVEL=DEBUG
+export GITHUB_API_KEY=your_token_here
+```
+
+### Configuration File
+
+```json
+{
+  "request_timeout": 45,
+  "rate_limit": 1.5,
+  "log_level": "INFO",
+  "api_keys": {
+    "github": "your_github_token"
+  }
+}
+```
+
+### Programmatic Configuration
+
+```python
+from research_scrapers import Config
+
+config = Config()
+config.REQUEST_TIMEOUT = 60
+config.RATE_LIMIT = 2.0
+config.set_api_key('github', 'your_token')
+```
+
+## 📚 Examples
+
+### Basic Web Scraping
+
+```python
+# Run the basic scraping example
+python scripts/example_basic_scraping.py
+```
+
+### Batch Processing
+
+```python
+# Run batch scraping with multiple URLs
+python scripts/example_batch_scraping.py
+```
+
+### Selenium Scraping
+
+```python
+# Scrape JavaScript-heavy sites
+python scripts/example_selenium_scraping.py
+```
+
+## 🛠️ Development Setup
+
+For development, use the provided setup script:
+
+```bash
+# Run the development setup
+python scripts/setup.py
+```
+
+This will:
+- Check Python version compatibility
+- Install dependencies
+- Create necessary directories
+- Set up pre-commit hooks
+- Create example configuration files
+- Run the test suite
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=research_scrapers --cov-report=html
+
+# Run specific test file
+pytest tests/test_scraper.py -v
+```
+
+### Code Quality
+
+```bash
+# Format code
+black src/ tests/ scripts/
+
+# Lint code
+flake8 src/ tests/ scripts/
+
+# Type checking
+mypy src/research_scrapers/
+```
+
+## 📝 Documentation
+
+Comprehensive documentation is available in the `docs/` directory:
+
+- [Getting Started](docs/getting-started.md) - Installation and basic usage
+- [Configuration](docs/configuration.md) - Detailed configuration options
+- [API Reference](docs/api-reference.md) - Complete API documentation
+- [Examples](docs/examples/) - Advanced usage examples
+
+## 🔍 Key Components
+
+### Core Classes
+
+- **`BaseScraper`**: Abstract base class for all scrapers
+- **`WebScraper`**: HTTP-based scraper using requests and BeautifulSoup
+- **`SeleniumScraper`**: Browser-based scraper for JavaScript sites
+- **`Config`**: Configuration management with multiple sources
+
+### Utilities
+
+- **Rate Limiting**: `@rate_limit` decorator
+- **Retry Logic**: `@retry_on_failure` decorator
+- **Text Processing**: `clean_text()` function
+- **File Operations**: `save_to_json()`, `load_from_json()`
+- **URL Validation**: `validate_url()`, `extract_domain()`
+- **Batch Processing**: `batch_process()` function
+
+### Features
+
+- ✅ **Rate Limiting**: Configurable requests per second
+- ✅ **Error Handling**: Automatic retries with exponential backoff
+- ✅ **User Agent Rotation**: Customizable user agent strings
+- ✅ **Proxy Support**: HTTP/HTTPS proxy configuration
+- ✅ **Content Filtering**: MIME type and size validation
+- ✅ **Logging**: Comprehensive logging with multiple levels
+- ✅ **Configuration**: Environment variables, files, and programmatic
+- ✅ **Testing**: Full test suite with mocking
+
+## 🔄 Workflow Examples
+
+### Research Paper Collection
+
+```python
+# Scrape academic paper metadata
+from research_scrapers import WebScraper
+
+scraper = WebScraper()
+papers = []
+
+for url in paper_urls:
+    result = scraper.scrape(url, selector='.paper-title, .abstract')
+    papers.append({
+        'title': result['selected_content'][0],
+        'abstract': result['selected_content'][1],
+        'url': url
+    })
+
+save_to_json(papers, 'research_papers.json')
+```
+
+### Social Media Analysis
+
+```python
+# Scrape social media posts (with proper authentication)
+from research_scrapers.scraper import SeleniumScraper
+
+scraper = SeleniumScraper(headless=True)
+posts = []
+
+for hashtag in hashtags:
+    result = scraper.scrape(
+        f'https://example-social.com/hashtag/{hashtag}',
+        selector='.post-content',
+        wait_for_element='.posts-loaded'
+    )
+    posts.extend(result['selected_content'])
+
+save_to_json(posts, f'social_posts_{hashtag}.json')
+```
+
+## 🔒 Security & Ethics
+
+- **Respect robots.txt**: Always check and respect website policies
+- **Rate Limiting**: Built-in rate limiting to avoid overwhelming servers
+- **User Agent**: Identify your scraper appropriately
+- **Terms of Service**: Ensure compliance with website terms
+- **Data Privacy**: Handle personal data responsibly
+- **API First**: Use official APIs when available
+
+## 📊 Performance Tips
+
+1. **Use appropriate scraper**: HTTP for static content, Selenium for JavaScript
+2. **Configure rate limits**: Balance speed with server respect
+3. **Batch processing**: Process URLs in batches for efficiency
+4. **Caching**: Implement caching for repeated requests
+5. **Async operations**: Use async scrapers for high-volume tasks
+6. **Resource cleanup**: Always close scrapers and sessions
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+1. **Selenium WebDriver not found**
+   ```bash
+   pip install webdriver-manager
+   ```
+
+2. **Rate limiting too aggressive**
+   ```python
+   config.RATE_LIMIT = 0.5  # Slower rate
+   ```
+
+3. **JavaScript not loading**
+   ```python
+   # Use Selenium with explicit waits
+   scraper = SeleniumScraper()
+   result = scraper.scrape(url, wait_for_element='.content')
+   ```
+
+4. **Memory issues with large datasets**
+   ```python
+   # Process in smaller batches
+   batches = batch_process(urls, batch_size=10)
+   ```
+
+## 🤝 Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](docs/contributing.md) for guidelines.
+
+### Development Workflow
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Run the test suite
+6. Submit a pull request
+
+### Code Standards
+
+- Follow PEP 8 style guidelines
+- Use type hints where appropriate
+- Write comprehensive docstrings
+- Add tests for new features
+- Update documentation as needed
+
+## 📜 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-- **GitHub API**: For providing comprehensive data access
-- **PyGithub**: Excellent Python GitHub API wrapper
-- **Requests**: Reliable HTTP library
-- **Click**: User-friendly CLI framework
-- **Community**: Contributors and users who make this project better
+- Built with [requests](https://requests.readthedocs.io/) and [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/)
+- Selenium integration for JavaScript support
+- Inspired by the research community's need for reliable data collection tools
 
 ## 📞 Support
 
-- **Documentation**: Check this README and inline code documentation
-- **Issues**: [GitHub Issues](https://github.com/CrazyDubya/research-scrapers/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/CrazyDubya/research-scrapers/discussions)
+For questions, issues, or feature requests:
+
+- 🐛 [Report bugs](https://github.com/CrazyDubya/research-scrapers/issues)
+- 💡 [Request features](https://github.com/CrazyDubya/research-scrapers/issues)
+- 💬 [Discussions](https://github.com/CrazyDubya/research-scrapers/discussions)
 
 ---
 
-**Made with ❤️ by Stephen Thompson**
-
-*Happy scraping! 🚀*
+**Happy Scraping! 🕷️📊**
