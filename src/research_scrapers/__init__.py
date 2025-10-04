@@ -1,0 +1,31 @@
+"""Research Scrapers Package
+
+A comprehensive toolkit for scraping and analyzing data from various research sources.
+"""
+
+__version__ = "0.1.0"
+__author__ = "Stephen Thompson"
+__email__ = "your.email@example.com"
+
+from .scraper import BaseScraper, WebScraper
+from .utils import (
+    setup_logging,
+    rate_limit,
+    retry_on_failure,
+    clean_text,
+    save_to_json,
+    load_from_json
+)
+from .config import Config
+
+__all__ = [
+    "BaseScraper",
+    "WebScraper",
+    "Config",
+    "setup_logging",
+    "rate_limit",
+    "retry_on_failure",
+    "clean_text",
+    "save_to_json",
+    "load_from_json"
+]
