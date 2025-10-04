@@ -1,54 +1,42 @@
-# Core GitHub API and HTTP libraries
+# Core web scraping dependencies
 requests>=2.31.0
-PyGithub>=2.1.1
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+selenium>=4.15.0
 
 # Data processing and analysis
 pandas>=2.0.0
 numpy>=1.24.0
 
-# Environment and configuration
+# Configuration and utilities
+pyyaml>=6.0
+click>=8.1.0
 python-dotenv>=1.0.0
 
-# CLI interface
-click>=8.1.0
+# Async support
+aiohttp>=3.8.0
+aiofiles>=23.0.0
 
-# Progress bars and monitoring
-tqdm>=4.66.0
+# Database support
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0  # PostgreSQL
 
-# Rate limiting and retry logic
-ratelimit>=2.2.1
-backoff>=2.2.1
-
-# Data serialization
-pyyaml>=6.0
-
-# Date and time handling
-python-dateutil>=2.8.2
-
-# HTTP session management
-requests-cache>=1.1.0
-
-# JSON processing
-jsonlines>=4.0.0
-
-# Logging enhancements
-colorlog>=6.7.0
-
-# Data validation
-pydantic>=2.0.0
-
-# CSV and data export
-openpyxl>=3.1.0
-
-# Web scraping (if needed beyond API)
-beautifulsoup4>=4.12.0
-lxml>=4.9.0
-
-# Async support (optional for concurrent requests)
-aiohttp>=3.9.0
-asyncio>=3.4.3
+# Logging and monitoring
+loguru>=0.7.0
 
 # Testing dependencies
 pytest>=7.4.0
-pytest-cov>=4.1.0
-responses>=0.23.0
+pytest-asyncio>=0.21.0
+pytest-mock>=3.11.0
+requests-mock>=1.11.0
+
+# Development dependencies
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.5.0
+pre-commit>=3.4.0
+
+# Optional: API clients for specific services
+# pygithub>=1.59.0  # GitHub API
+# tweepy>=4.14.0    # Twitter API
+# praw>=7.7.0       # Reddit API
