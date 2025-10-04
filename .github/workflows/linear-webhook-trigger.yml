@@ -1,0 +1,158 @@
+name: Linear Webhook Trigger
+
+on:
+  repository_dispatch:
+    types: [linear-task-created, linear-task-updated]
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  process-linear-webhook:
+    name: Process Linear Webhook Event
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Parse webhook payload
+        id: parse
+        run: |
+          # Extract Linear task information from webhook payload
+          TASK_ID="${{ github.event.client_payload.task_id }}"
+          TASK_TITLE="${{ github.event.client_payload.task_title }}"
+          TASK_DESCRIPTION="${{ github.event.client_payload.task_description }}"
+          TASK_LABELS="${{ github.event.client_payload.labels }}"
+          
+          echo "task_id=${TASK_ID}" >> $GITHUB_OUTPUT
+          echo "task_title=${TASK_TITLE}" >> $GITHUB_OUTPUT
+          
+          # Parse labels to determine scraper type
+          SCRAPER_TYPE="github_repo"
+          if [[ "${TASK_LABELS}" == *"scrape-issues"* ]]; then
+            SCRAPER_TYPE="github_issue"
+          elif [[ "${TASK_LABELS}" == *"scrape-users"* ]]; then
+            SCRAPER_TYPE="github_user"
+          elif [[ "${TASK_LABELS}" == *"scrape-all"* ]]; then
+            SCRAPER_TYPE="all"
+          fi
+          
+          echo "scraper_type=${SCRAPER_TYPE}" >> $GITHUB_OUTPUT
+          
+          # Extract target from description or title
+          TARGET=$(echo "${TASK_DESCRIPTION}" | grep -oP 'target:\s*\K[^\s]+' || echo "")
+          echo "target=${TARGET}" >> $GITHUB_OUTPUT
+          
+          echo "::notice::Webhook received for task ${TASK_ID}: ${TASK_TITLE}"
+      
+      - name: Validate webhook data
+        run: |
+          if [ -z "${{ steps.parse.outputs.task_id }}" ]; then
+            echo "::error::No task ID found in webhook payload"
+            exit 1
+          fi
+          
+          echo "::notice::Valid webhook data received"
+      
+      - name: Trigger research scraper workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const response = await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'research-scraper-scheduled.yml',
+              ref: 'main',
+              inputs: {
+                scraper_type: '${{ steps.parse.outputs.scraper_type }}',
+                target: '${{ steps.parse.outputs.target }}',
+                linear_task_id: '${{ steps.parse.outputs.task_id }}',
+                update_linear: 'true'
+              }
+            });
+            
+            core.notice(`Triggered scraper workflow for Linear task ${{ steps.parse.outputs.task_id }}`);
+      
+      - name: Update Linear task status
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          TASK_ID: ${{ steps.parse.outputs.task_id }}
+        run: |
+          # Create a simple status update script inline
+          python3 << 'EOF'
+          import os
+          import json
+          import urllib.request
+          import urllib.error
+          
+          api_key = os.environ.get('LINEAR_API_KEY')
+          task_id = os.environ.get('TASK_ID')
+          
+          if not api_key:
+              print("Warning: LINEAR_API_KEY not set, skipping Linear update")
+              exit(0)
+          
+          query = """
+          mutation UpdateIssue($id: String!, $comment: String!) {
+            issueUpdate(
+              id: $id,
+              input: {
+                stateId: "in_progress"
+              }
+            ) {
+              success
+              issue {
+                id
+                title
+                state {
+                  name
+                }
+              }
+            }
+            commentCreate(
+              input: {
+                issueId: $id,
+                body: $comment
+              }
+            ) {
+              success
+            }
+          }
+          """
+          
+          variables = {
+              "id": task_id,
+              "comment": f"🤖 Research scraper workflow triggered from GitHub Actions.\nWorkflow: {os.environ.get('GITHUB_SERVER_URL')}/{os.environ.get('GITHUB_REPOSITORY')}/actions/runs/{os.environ.get('GITHUB_RUN_ID')}"
+          }
+          
+          headers = {
+              'Content-Type': 'application/json',
+              'Authorization': api_key
+          }
+          
+          data = json.dumps({
+              'query': query,
+              'variables': variables
+          }).encode('utf-8')
+          
+          req = urllib.request.Request(
+              'https://api.linear.app/graphql',
+              data=data,
+              headers=headers
+          )
+          
+          try:
+              with urllib.request.urlopen(req) as response:
+                  result = json.loads(response.read().decode('utf-8'))
+                  if result.get('data', {}).get('issueUpdate', {}).get('success'):
+                      print(f"✅ Linear task {task_id} updated successfully")
+                  else:
+                      print(f"⚠️ Failed to update Linear task: {result}")
+          except urllib.error.URLError as e:
+              print(f"⚠️ Error updating Linear task: {e}")
+          EOF
