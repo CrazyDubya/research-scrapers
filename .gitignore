@@ -1,0 +1,342 @@
+# ============================================
+# CREDENTIALS & SECRETS - CRITICAL
+# ============================================
+# Never commit these files containing sensitive data
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*_rsa
+*_rsa.pub
+*.env
+.env
+.env.*
+!.env.example
+!.env.template
+credentials.json
+credentials.yml
+credentials.yaml
+secrets.json
+secrets.yml
+secrets.yaml
+config/secrets/
+auth/
+tokens/
+*.token
+.secrets/
+api_keys.txt
+passwords.txt
+.password
+.credentials
+*.credentials
+
+# Cloud provider credentials
+.aws/
+.azure/
+.gcloud/
+gcloud-credentials.json
+service-account*.json
+
+# ============================================
+# PYTHON
+# ============================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+virtualenv/
+.virtualenvs/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+.hypothesis/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+!**/examples/**/*.ipynb
+!**/tutorials/**/*.ipynb
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# Poetry
+poetry.lock
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# ============================================
+# RESEARCH & SCRAPING SPECIFIC
+# ============================================
+# Scraped data and outputs
+data/
+dataset/
+datasets/
+scraped_data/
+raw_data/
+processed_data/
+output/
+outputs/
+results/
+downloads/
+cache/
+temp/
+tmp/
+*.csv
+*.json
+!config.json
+!schema.json
+*.jsonl
+*.xml
+*.html
+*.htm
+!templates/*.html
+*.pdf
+*.xlsx
+*.xls
+*.parquet
+*.feather
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+database/
+db/
+
+# Log files
+*.log
+logs/
+*.log.*
+scraper.log
+debug.log
+error.log
+access.log
+
+# Browser automation
+chromedriver
+geckodriver
+*.crx
+selenium-debug.log
+playwright-state/
+.browser/
+
+# Checkpoint and state files
+checkpoint/
+checkpoints/
+state/
+*.checkpoint
+*.state
+progress.json
+resume.json
+
+# Large media files
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.mp3
+*.wav
+*.flac
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+*.iso
+*.dmg
+
+# Research papers (if not part of repo)
+papers/
+*.pdf
+!docs/**/*.pdf
+
+# ============================================
+# IDE & EDITORS
+# ============================================
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+.vim/
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# JetBrains
+.idea/
+*.iml
+
+# ============================================
+# OPERATING SYSTEM
+# ============================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ============================================
+# MISCELLANEOUS
+# ============================================
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+*.tmp
+
+# Compressed files (if not intentionally stored)
+*.gz
+*.bz2
+*.xz
+
+# Node modules (if using any JS tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker
+*.dockerignore
+docker-compose.override.yml
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Git
+*.patch
+*.diff
+
+# Testing
+.tox/
+.pytest_cache/
+test-results/
+test-output/
+
+# Documentation builds
+docs/_build/
+docs/.build/
+
+# Localization
+*.mo
+*.pot
+
+# Custom ignore patterns (add project-specific patterns below)
+# ============================================
