@@ -1,0 +1,17 @@
+# Linear API Integration Dependencies
+
+# No additional dependencies needed for basic Linear integration
+# The update_linear_task.py script uses only Python standard library:
+# - urllib.request for HTTP requests
+# - json for JSON handling
+# - os for environment variables
+
+# Optional: If you want to use a dedicated Linear SDK in the future:
+# linear-sdk>=1.0.0  # Not required for current implementation
+
+# Optional: Enhanced HTTP client for future improvements
+# httpx>=0.24.0
+
+# Optional: GraphQL client library for more complex queries
+# gql>=3.4.0
+# requests-toolbelt>=1.0.0
