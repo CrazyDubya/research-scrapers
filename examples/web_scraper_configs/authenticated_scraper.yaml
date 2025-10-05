@@ -1,0 +1,55 @@
+# Configuration for scraping sites requiring authentication
+
+user_agent: "ResearchBot/1.0"
+timeout: 30
+verify_ssl: true
+respect_robots_txt: true
+
+rate_limit:
+  requests_per_second: 1.0
+  burst_size: 3
+  max_retries: 3
+
+auth:
+  # Option 1: Basic Authentication
+  # auth_type: "basic"
+  # username: "your_username"
+  # password: "your_password"
+  
+  # Option 2: Bearer Token
+  # auth_type: "bearer"
+  # token: "your_api_token"
+  
+  # Option 3: Cookie-based
+  auth_type: "cookie"
+  cookies:
+    session_id: "your_session_id"
+    auth_token: "your_auth_token"
+  
+  # Option 4: Form-based login
+  # auth_type: "form"
+  # username: "your_username"
+  # password: "your_password"
+  # form_login_url: "https://example.com/login"
+  # form_fields:
+  #   csrf_token: "token_value"
+  #   remember_me: "true"
+  
+  headers:
+    X-Requested-With: "XMLHttpRequest"
+
+extraction:
+  method: "auto"
+  clean_whitespace: true
+  preserve_formatting: true
+  extract_metadata: true
+
+pagination:
+  enabled: false
+
+browser:
+  enabled: false
+
+output_format: "json"
+output_dir: "./output/authenticated"
+log_level: "INFO"

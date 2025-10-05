@@ -1,0 +1,49 @@
+# Configuration for scraping technical documentation
+
+user_agent: "DocResearchBot/1.0 (Educational Purpose)"
+timeout: 45
+verify_ssl: true
+respect_robots_txt: true
+
+rate_limit:
+  requests_per_second: 2.0
+  burst_size: 5
+  backoff_factor: 1.5
+  max_retries: 5
+
+auth:
+  auth_type: "none"
+
+extraction:
+  method: "auto"
+  content_type: "documentation"
+  remove_elements:
+    - "script"
+    - "style"
+    - "nav"
+    - "header"
+    - "footer"
+    - ".sidebar"
+  clean_whitespace: true
+  preserve_formatting: true
+  extract_metadata: true
+  extract_links: true
+  follow_links: false
+  link_patterns:
+    - ".*/docs/.*"
+    - ".*/api/.*"
+    - ".*/reference/.*"
+
+pagination:
+  enabled: true
+  method: "next_button"
+  next_selector: "a.next-page, a[rel='next'], .pagination-next"
+  max_pages: 100
+  wait_between_pages: 2.0
+
+browser:
+  enabled: false
+
+output_format: "json"
+output_dir: "./output/documentation"
+log_level: "INFO"

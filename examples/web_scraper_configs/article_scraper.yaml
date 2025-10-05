@@ -1,0 +1,49 @@
+# Configuration for scraping news articles and blog posts
+
+user_agent: "ResearchBot/1.0 (Educational Purpose; +https://example.com/bot)"
+timeout: 30
+verify_ssl: true
+respect_robots_txt: true
+robots_txt_cache_time: 3600
+
+rate_limit:
+  requests_per_second: 1.0
+  burst_size: 3
+  respect_retry_after: true
+  backoff_factor: 2.0
+  max_retries: 3
+
+auth:
+  auth_type: "none"
+
+extraction:
+  method: "auto"
+  content_type: "article"
+  remove_elements:
+    - "script"
+    - "style"
+    - "nav"
+    - "header"
+    - "footer"
+    - "aside"
+    - ".advertisement"
+    - ".ad"
+    - ".sidebar"
+    - ".comments"
+    - ".related-articles"
+    - ".social-share"
+  clean_whitespace: true
+  remove_empty_paragraphs: true
+  preserve_formatting: true
+  extract_metadata: true
+  extract_links: false
+
+pagination:
+  enabled: false
+
+browser:
+  enabled: false
+
+output_format: "json"
+output_dir: "./output/articles"
+log_level: "INFO"
