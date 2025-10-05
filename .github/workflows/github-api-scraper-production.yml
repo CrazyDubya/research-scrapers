@@ -1,0 +1,972 @@
+name: GitHub API Scraper - Production
+
+on:
+  # Scheduled execution - daily at 2 AM UTC
+  schedule:
+    - cron: '0 2 * * *'
+  
+  # Manual execution with extensive configuration options
+  workflow_dispatch:
+    inputs:
+      scraper_mode:
+        description: 'Scraping mode to execute'
+        required: true
+        type: choice
+        options:
+          - repository
+          - user
+          - issues
+          - pull_requests
+          - organization
+          - search_repos
+          - search_users
+          - search_code
+          - batch_repos
+          - comprehensive
+        default: 'repository'
+      
+      target:
+        description: 'Target (owner/repo, username, org, or search query)'
+        required: true
+        type: string
+        default: 'microsoft/vscode'
+      
+      output_format:
+        description: 'Output format'
+        required: false
+        type: choice
+        options:
+          - json
+          - csv
+          - both
+        default: 'json'
+      
+      include_commits:
+        description: 'Include commit history (large datasets)'
+        required: false
+        type: boolean
+        default: false
+      
+      include_issues:
+        description: 'Include issues data (large datasets)'
+        required: false
+        type: boolean
+        default: false
+      
+      include_pull_requests:
+        description: 'Include pull requests data (large datasets)'
+        required: false
+        type: boolean
+        default: false
+      
+      max_items:
+        description: 'Maximum items to fetch (commits, issues, PRs)'
+        required: false
+        type: number
+        default: 100
+      
+      parallel_execution:
+        description: 'Enable parallel execution for batch operations'
+        required: false
+        type: boolean
+        default: true
+      
+      notification_email:
+        description: 'Email for notifications (optional)'
+        required: false
+        type: string
+      
+      slack_webhook:
+        description: 'Slack webhook URL for notifications (optional)'
+        required: false
+        type: string
+      
+      artifact_retention_days:
+        description: 'Artifact retention period (days)'
+        required: false
+        type: number
+        default: 30
+      
+      debug_mode:
+        description: 'Enable debug logging'
+        required: false
+        type: boolean
+        default: false
+  
+  # Webhook/API endpoint for external triggers (Poke integration)
+  repository_dispatch:
+    types: [scrape-github-api, poke-trigger]
+
+# Security permissions
+permissions:
+  contents: read
+  actions: read
+  id-token: write  # Required for OIDC authentication
+  issues: write    # For creating issues on failures
+  pull-requests: write  # For PR operations
+
+# Environment variables
+env:
+  PYTHON_VERSION: '3.11'
+  CACHE_KEY_PREFIX: 'github-scraper-v2'
+  DEFAULT_RETENTION_DAYS: 30
+  MAX_PARALLEL_JOBS: 5
+
+jobs:
+  # ============================================================================
+  # SETUP AND VALIDATION
+  # ============================================================================
+  setup:
+    name: Setup and Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    outputs:
+      scraper_mode: ${{ steps.config.outputs.scraper_mode }}
+      target: ${{ steps.config.outputs.target }}
+      output_format: ${{ steps.config.outputs.output_format }}
+      include_commits: ${{ steps.config.outputs.include_commits }}
+      include_issues: ${{ steps.config.outputs.include_issues }}
+      include_pull_requests: ${{ steps.config.outputs.include_pull_requests }}
+      max_items: ${{ steps.config.outputs.max_items }}
+      parallel_execution: ${{ steps.config.outputs.parallel_execution }}
+      notification_email: ${{ steps.config.outputs.notification_email }}
+      slack_webhook: ${{ steps.config.outputs.slack_webhook }}
+      artifact_retention_days: ${{ steps.config.outputs.artifact_retention_days }}
+      debug_mode: ${{ steps.config.outputs.debug_mode }}
+      run_id: ${{ steps.config.outputs.run_id }}
+      matrix_targets: ${{ steps.matrix.outputs.targets }}
+      rate_limit_status: ${{ steps.rate_limit.outputs.status }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
+      - name: Configure execution parameters
+        id: config
+        run: |
+          # Handle different trigger types
+          if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            # Extract from repository_dispatch payload
+            SCRAPER_MODE="${{ github.event.client_payload.scraper_mode || 'repository' }}"
+            TARGET="${{ github.event.client_payload.target || 'microsoft/vscode' }}"
+            OUTPUT_FORMAT="${{ github.event.client_payload.output_format || 'json' }}"
+            INCLUDE_COMMITS="${{ github.event.client_payload.include_commits || 'false' }}"
+            INCLUDE_ISSUES="${{ github.event.client_payload.include_issues || 'false' }}"
+            INCLUDE_PRS="${{ github.event.client_payload.include_pull_requests || 'false' }}"
+            MAX_ITEMS="${{ github.event.client_payload.max_items || '100' }}"
+            PARALLEL_EXEC="${{ github.event.client_payload.parallel_execution || 'true' }}"
+            NOTIFICATION_EMAIL="${{ github.event.client_payload.notification_email || '' }}"
+            SLACK_WEBHOOK="${{ github.event.client_payload.slack_webhook || '' }}"
+            RETENTION_DAYS="${{ github.event.client_payload.artifact_retention_days || '30' }}"
+            DEBUG_MODE="${{ github.event.client_payload.debug_mode || 'false' }}"
+          elif [ "${{ github.event_name }}" == "schedule" ]; then
+            # Default scheduled execution
+            SCRAPER_MODE="comprehensive"
+            TARGET="microsoft/vscode,facebook/react,google/tensorflow"
+            OUTPUT_FORMAT="both"
+            INCLUDE_COMMITS="false"
+            INCLUDE_ISSUES="true"
+            INCLUDE_PRS="true"
+            MAX_ITEMS="50"
+            PARALLEL_EXEC="true"
+            NOTIFICATION_EMAIL=""
+            SLACK_WEBHOOK=""
+            RETENTION_DAYS="30"
+            DEBUG_MODE="false"
+          else
+            # Manual workflow_dispatch
+            SCRAPER_MODE="${{ github.event.inputs.scraper_mode || 'repository' }}"
+            TARGET="${{ github.event.inputs.target || 'microsoft/vscode' }}"
+            OUTPUT_FORMAT="${{ github.event.inputs.output_format || 'json' }}"
+            INCLUDE_COMMITS="${{ github.event.inputs.include_commits || 'false' }}"
+            INCLUDE_ISSUES="${{ github.event.inputs.include_issues || 'false' }}"
+            INCLUDE_PRS="${{ github.event.inputs.include_pull_requests || 'false' }}"
+            MAX_ITEMS="${{ github.event.inputs.max_items || '100' }}"
+            PARALLEL_EXEC="${{ github.event.inputs.parallel_execution || 'true' }}"
+            NOTIFICATION_EMAIL="${{ github.event.inputs.notification_email || '' }}"
+            SLACK_WEBHOOK="${{ github.event.inputs.slack_webhook || '' }}"
+            RETENTION_DAYS="${{ github.event.inputs.artifact_retention_days || '30' }}"
+            DEBUG_MODE="${{ github.event.inputs.debug_mode || 'false' }}"
+          fi
+          
+          # Generate unique run ID
+          RUN_ID="scraper-$(date +%Y%m%d-%H%M%S)-${{ github.run_number }}"
+          
+          # Output all parameters
+          echo "scraper_mode=${SCRAPER_MODE}" >> $GITHUB_OUTPUT
+          echo "target=${TARGET}" >> $GITHUB_OUTPUT
+          echo "output_format=${OUTPUT_FORMAT}" >> $GITHUB_OUTPUT
+          echo "include_commits=${INCLUDE_COMMITS}" >> $GITHUB_OUTPUT
+          echo "include_issues=${INCLUDE_ISSUES}" >> $GITHUB_OUTPUT
+          echo "include_pull_requests=${INCLUDE_PRS}" >> $GITHUB_OUTPUT
+          echo "max_items=${MAX_ITEMS}" >> $GITHUB_OUTPUT
+          echo "parallel_execution=${PARALLEL_EXEC}" >> $GITHUB_OUTPUT
+          echo "notification_email=${NOTIFICATION_EMAIL}" >> $GITHUB_OUTPUT
+          echo "slack_webhook=${SLACK_WEBHOOK}" >> $GITHUB_OUTPUT
+          echo "artifact_retention_days=${RETENTION_DAYS}" >> $GITHUB_OUTPUT
+          echo "debug_mode=${DEBUG_MODE}" >> $GITHUB_OUTPUT
+          echo "run_id=${RUN_ID}" >> $GITHUB_OUTPUT
+          
+          echo "::notice::Configured scraper execution: ${SCRAPER_MODE} for ${TARGET}"
+      
+      - name: Validate secrets and configuration
+        run: |
+          # Check required secrets
+          if [ -z "${{ secrets.GITHUB_TOKEN }}" ]; then
+            echo "::error::GITHUB_TOKEN secret not configured"
+            exit 1
+          fi
+          
+          # Validate target format based on scraper mode
+          TARGET="${{ steps.config.outputs.target }}"
+          MODE="${{ steps.config.outputs.scraper_mode }}"
+          
+          case "${MODE}" in
+            "repository"|"issues"|"pull_requests")
+              if [[ ! "${TARGET}" =~ ^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$ ]] && [[ ! "${TARGET}" =~ , ]]; then
+                echo "::error::Invalid target format for ${MODE}. Expected: owner/repo or comma-separated list"
+                exit 1
+              fi
+              ;;
+            "user"|"organization")
+              if [[ "${TARGET}" =~ / ]]; then
+                echo "::error::Invalid target format for ${MODE}. Expected: username or org name"
+                exit 1
+              fi
+              ;;
+          esac
+          
+          # Check optional notification secrets
+          if [ -n "${{ steps.config.outputs.notification_email }}" ] && [ -z "${{ secrets.SMTP_PASSWORD }}" ]; then
+            echo "::warning::Email notifications requested but SMTP_PASSWORD not configured"
+          fi
+          
+          if [ -n "${{ steps.config.outputs.slack_webhook }}" ] && [ -z "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            echo "::warning::Slack notifications requested but SLACK_WEBHOOK_URL not configured"
+          fi
+          
+          echo "::notice::Configuration validation completed"
+      
+      - name: Check GitHub API rate limits
+        id: rate_limit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check current rate limit status
+          RATE_LIMIT_RESPONSE=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" \
+            https://api.github.com/rate_limit)
+          
+          CORE_REMAINING=$(echo "${RATE_LIMIT_RESPONSE}" | jq -r '.resources.core.remaining')
+          CORE_LIMIT=$(echo "${RATE_LIMIT_RESPONSE}" | jq -r '.resources.core.limit')
+          SEARCH_REMAINING=$(echo "${RATE_LIMIT_RESPONSE}" | jq -r '.resources.search.remaining')
+          SEARCH_LIMIT=$(echo "${RATE_LIMIT_RESPONSE}" | jq -r '.resources.search.limit')
+          
+          echo "status=ok" >> $GITHUB_OUTPUT
+          echo "core_remaining=${CORE_REMAINING}" >> $GITHUB_OUTPUT
+          echo "core_limit=${CORE_LIMIT}" >> $GITHUB_OUTPUT
+          echo "search_remaining=${SEARCH_REMAINING}" >> $GITHUB_OUTPUT
+          echo "search_limit=${SEARCH_LIMIT}" >> $GITHUB_OUTPUT
+          
+          # Warn if rate limits are low
+          if [ "${CORE_REMAINING}" -lt 100 ]; then
+            echo "::warning::Low GitHub API rate limit: ${CORE_REMAINING}/${CORE_LIMIT} remaining"
+          fi
+          
+          if [ "${SEARCH_REMAINING}" -lt 10 ]; then
+            echo "::warning::Low GitHub Search API rate limit: ${SEARCH_REMAINING}/${SEARCH_LIMIT} remaining"
+          fi
+          
+          echo "::notice::Rate limits - Core: ${CORE_REMAINING}/${CORE_LIMIT}, Search: ${SEARCH_REMAINING}/${SEARCH_LIMIT}"
+      
+      - name: Prepare matrix strategy
+        id: matrix
+        run: |
+          TARGET="${{ steps.config.outputs.target }}"
+          MODE="${{ steps.config.outputs.scraper_mode }}"
+          PARALLEL="${{ steps.config.outputs.parallel_execution }}"
+          
+          # Create matrix targets based on mode and parallel execution
+          if [ "${PARALLEL}" == "true" ] && [[ "${TARGET}" =~ , ]]; then
+            # Split comma-separated targets for parallel execution
+            IFS=',' read -ra TARGETS <<< "${TARGET}"
+            MATRIX_JSON="["
+            for i in "${!TARGETS[@]}"; do
+              TARGET_CLEAN=$(echo "${TARGETS[$i]}" | xargs)  # Trim whitespace
+              if [ $i -gt 0 ]; then
+                MATRIX_JSON="${MATRIX_JSON},"
+              fi
+              MATRIX_JSON="${MATRIX_JSON}\"${TARGET_CLEAN}\""
+            done
+            MATRIX_JSON="${MATRIX_JSON}]"
+          else
+            # Single target or sequential execution
+            MATRIX_JSON="[\"${TARGET}\"]"
+          fi
+          
+          echo "targets=${MATRIX_JSON}" >> $GITHUB_OUTPUT
+          echo "::notice::Matrix strategy: ${MATRIX_JSON}"
+
+  # ============================================================================
+  # MAIN SCRAPING EXECUTION
+  # ============================================================================
+  scrape:
+    name: Execute Scraper
+    runs-on: ubuntu-latest
+    needs: setup
+    timeout-minutes: 60
+    
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ needs.setup.outputs.parallel_execution == 'true' && 5 || 1 }}
+      matrix:
+        target: ${{ fromJson(needs.setup.outputs.matrix_targets) }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            requirements-linear.txt
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          
+          # Install optional dependencies
+          if [ -f requirements-linear.txt ]; then
+            pip install -r requirements-linear.txt || echo "::warning::Optional Linear dependencies failed to install"
+          fi
+          
+          # Install additional production dependencies
+          pip install python-dotenv requests-cache
+      
+      - name: Create output directories
+        run: |
+          mkdir -p output logs cache artifacts temp
+          chmod 755 output logs cache artifacts temp
+      
+      - name: Configure environment
+        env:
+          DEBUG_MODE: ${{ needs.setup.outputs.debug_mode }}
+        run: |
+          # Set log level based on debug mode
+          if [ "${DEBUG_MODE}" == "true" ]; then
+            echo "LOG_LEVEL=DEBUG" >> $GITHUB_ENV
+            echo "VERBOSE_OUTPUT=true" >> $GITHUB_ENV
+          else
+            echo "LOG_LEVEL=INFO" >> $GITHUB_ENV
+            echo "VERBOSE_OUTPUT=false" >> $GITHUB_ENV
+          fi
+          
+          # Set other environment variables
+          echo "RUN_ID=${{ needs.setup.outputs.run_id }}" >> $GITHUB_ENV
+          echo "SCRAPER_MODE=${{ needs.setup.outputs.scraper_mode }}" >> $GITHUB_ENV
+          echo "OUTPUT_FORMAT=${{ needs.setup.outputs.output_format }}" >> $GITHUB_ENV
+      
+      - name: Execute GitHub API Scraper
+        id: scraper
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET: ${{ matrix.target }}
+          SCRAPER_MODE: ${{ needs.setup.outputs.scraper_mode }}
+          OUTPUT_FORMAT: ${{ needs.setup.outputs.output_format }}
+          INCLUDE_COMMITS: ${{ needs.setup.outputs.include_commits }}
+          INCLUDE_ISSUES: ${{ needs.setup.outputs.include_issues }}
+          INCLUDE_PRS: ${{ needs.setup.outputs.include_pull_requests }}
+          MAX_ITEMS: ${{ needs.setup.outputs.max_items }}
+          RUN_ID: ${{ needs.setup.outputs.run_id }}
+        run: |
+          echo "::group::Executing scraper for ${TARGET}"
+          
+          # Sanitize target for filename
+          TARGET_SAFE=$(echo "${TARGET}" | sed 's/[^a-zA-Z0-9._-]/_/g')
+          
+          # Set output files
+          JSON_OUTPUT="output/${SCRAPER_MODE}_${TARGET_SAFE}_${RUN_ID}.json"
+          CSV_OUTPUT="output/${SCRAPER_MODE}_${TARGET_SAFE}_${RUN_ID}.csv"
+          LOG_FILE="logs/${SCRAPER_MODE}_${TARGET_SAFE}_${RUN_ID}.log"
+          
+          # Build scraper command based on mode
+          case "${SCRAPER_MODE}" in
+            "repository")
+              SCRAPER_CMD="python github_repo_scraper.py"
+              SCRAPER_ARGS="${TARGET} --output ${JSON_OUTPUT}"
+              ;;
+            "user")
+              SCRAPER_CMD="python github_user_scraper.py"
+              SCRAPER_ARGS="${TARGET} --output ${JSON_OUTPUT}"
+              ;;
+            "issues")
+              SCRAPER_CMD="python github_issue_scraper.py"
+              SCRAPER_ARGS="${TARGET} --output ${JSON_OUTPUT}"
+              ;;
+            "comprehensive")
+              SCRAPER_CMD="python github_repo_scraper.py"
+              SCRAPER_ARGS="${TARGET} --output ${JSON_OUTPUT} --include-commits --include-issues --include-pull-requests"
+              ;;
+            *)
+              echo "::error::Unsupported scraper mode: ${SCRAPER_MODE}"
+              exit 1
+              ;;
+          esac
+          
+          # Add common arguments
+          if [ "${INCLUDE_COMMITS}" == "true" ]; then
+            SCRAPER_ARGS="${SCRAPER_ARGS} --include-commits --max-commits ${MAX_ITEMS}"
+          fi
+          
+          if [ "${INCLUDE_ISSUES}" == "true" ]; then
+            SCRAPER_ARGS="${SCRAPER_ARGS} --include-issues --max-issues ${MAX_ITEMS}"
+          fi
+          
+          if [ "${INCLUDE_PRS}" == "true" ]; then
+            SCRAPER_ARGS="${SCRAPER_ARGS} --include-pull-requests --max-pull-requests ${MAX_ITEMS}"
+          fi
+          
+          if [ "${VERBOSE_OUTPUT}" == "true" ]; then
+            SCRAPER_ARGS="${SCRAPER_ARGS} --verbose"
+          fi
+          
+          # Execute scraper with error handling
+          echo "Executing: ${SCRAPER_CMD} ${SCRAPER_ARGS}"
+          
+          if ${SCRAPER_CMD} ${SCRAPER_ARGS} 2>&1 | tee "${LOG_FILE}"; then
+            SCRAPER_EXIT_CODE=${PIPESTATUS[0]}
+          else
+            SCRAPER_EXIT_CODE=$?
+          fi
+          
+          # Check execution result
+          if [ ${SCRAPER_EXIT_CODE} -eq 0 ] && [ -f "${JSON_OUTPUT}" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "json_output=${JSON_OUTPUT}" >> $GITHUB_OUTPUT
+            echo "log_file=${LOG_FILE}" >> $GITHUB_OUTPUT
+            
+            # Generate CSV if requested
+            if [ "${OUTPUT_FORMAT}" == "csv" ] || [ "${OUTPUT_FORMAT}" == "both" ]; then
+              echo "Converting to CSV format..."
+              python -c "
+import json
+import csv
+import sys
+from pathlib import Path
+
+try:
+    with open('${JSON_OUTPUT}', 'r') as f:
+        data = json.load(f)
+    
+    # Flatten the JSON for CSV
+    def flatten_dict(d, parent_key='', sep='_'):
+        items = []
+        for k, v in d.items():
+            new_key = f'{parent_key}{sep}{k}' if parent_key else k
+            if isinstance(v, dict):
+                items.extend(flatten_dict(v, new_key, sep=sep).items())
+            elif isinstance(v, list):
+                if v and isinstance(v[0], dict):
+                    for i, item in enumerate(v[:10]):  # Limit to first 10 items
+                        items.extend(flatten_dict(item, f'{new_key}_{i}', sep=sep).items())
+                else:
+                    items.append((new_key, str(v)))
+            else:
+                items.append((new_key, v))
+        return dict(items)
+    
+    flattened = flatten_dict(data)
+    
+    with open('${CSV_OUTPUT}', 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['field', 'value'])
+        for key, value in flattened.items():
+            writer.writerow([key, value])
+    
+    print(f'CSV output saved to ${CSV_OUTPUT}')
+except Exception as e:
+    print(f'Error converting to CSV: {e}')
+    sys.exit(1)
+"
+              if [ $? -eq 0 ]; then
+                echo "csv_output=${CSV_OUTPUT}" >> $GITHUB_OUTPUT
+              fi
+            fi
+            
+            echo "::notice::Scraper completed successfully for ${TARGET}"
+          else
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "error_code=${SCRAPER_EXIT_CODE}" >> $GITHUB_OUTPUT
+            echo "::error::Scraper failed for ${TARGET} with exit code ${SCRAPER_EXIT_CODE}"
+          fi
+          
+          echo "::endgroup::"
+      
+      - name: Validate and analyze output
+        if: steps.scraper.outputs.status == 'success'
+        id: analysis
+        run: |
+          JSON_FILE="${{ steps.scraper.outputs.json_output }}"
+          
+          if [ -f "${JSON_FILE}" ]; then
+            # Validate JSON structure
+            if python -m json.tool "${JSON_FILE}" > /dev/null 2>&1; then
+              FILE_SIZE=$(stat -f%z "${JSON_FILE}" 2>/dev/null || stat -c%s "${JSON_FILE}")
+              RECORD_COUNT=$(python -c "
+import json
+try:
+    with open('${JSON_FILE}', 'r') as f:
+        data = json.load(f)
+    
+    # Count records based on scraper mode
+    if 'metadata' in data:
+        print('1')  # Single repository
+    elif 'repositories' in data:
+        print(len(data['repositories']))
+    elif 'issues' in data:
+        print(len(data['issues']))
+    elif isinstance(data, list):
+        print(len(data))
+    else:
+        print('1')
+except:
+    print('0')
+")
+              
+              echo "file_size=${FILE_SIZE}" >> $GITHUB_OUTPUT
+              echo "record_count=${RECORD_COUNT}" >> $GITHUB_OUTPUT
+              
+              echo "::notice::Output validated - Size: ${FILE_SIZE} bytes, Records: ${RECORD_COUNT}"
+            else
+              echo "::error::Invalid JSON output in ${JSON_FILE}"
+              exit 1
+            fi
+          else
+            echo "::error::Output file ${JSON_FILE} not found"
+            exit 1
+          fi
+      
+      - name: Generate metadata
+        if: steps.scraper.outputs.status == 'success'
+        run: |
+          METADATA_FILE="output/metadata_${{ matrix.target }}_${{ needs.setup.outputs.run_id }}.json"
+          
+          cat > "${METADATA_FILE}" << EOF
+{
+  "scraping_info": {
+    "run_id": "${{ needs.setup.outputs.run_id }}",
+    "target": "${{ matrix.target }}",
+    "scraper_mode": "${{ needs.setup.outputs.scraper_mode }}",
+    "execution_time": "$(date -u +"%Y-%m-%d %H:%M:%S UTC")",
+    "workflow_run": "${{ github.run_id }}",
+    "repository": "${{ github.repository }}",
+    "commit_sha": "${{ github.sha }}",
+    "actor": "${{ github.actor }}",
+    "event_name": "${{ github.event_name }}"
+  },
+  "output_info": {
+    "json_file": "${{ steps.scraper.outputs.json_output }}",
+    "csv_file": "${{ steps.scraper.outputs.csv_output || 'null' }}",
+    "log_file": "${{ steps.scraper.outputs.log_file }}",
+    "file_size_bytes": ${{ steps.analysis.outputs.file_size || 0 }},
+    "record_count": ${{ steps.analysis.outputs.record_count || 0 }}
+  },
+  "configuration": {
+    "include_commits": ${{ needs.setup.outputs.include_commits }},
+    "include_issues": ${{ needs.setup.outputs.include_issues }},
+    "include_pull_requests": ${{ needs.setup.outputs.include_pull_requests }},
+    "max_items": ${{ needs.setup.outputs.max_items }},
+    "output_format": "${{ needs.setup.outputs.output_format }}",
+    "debug_mode": ${{ needs.setup.outputs.debug_mode }}
+  }
+}
+EOF
+          
+          echo "::notice::Metadata generated: ${METADATA_FILE}"
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scraper-results-${{ matrix.target }}-${{ needs.setup.outputs.run_id }}
+          path: |
+            output/*.json
+            output/*.csv
+            logs/*.log
+          retention-days: ${{ needs.setup.outputs.artifact_retention_days }}
+          compression-level: 9
+          if-no-files-found: warn
+      
+      - name: Create job summary
+        if: always()
+        run: |
+          TARGET="${{ matrix.target }}"
+          STATUS="${{ steps.scraper.outputs.status }}"
+          
+          echo "## Scraper Results: ${TARGET}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${STATUS}" == "success" ]; then
+            echo "- **Status**: ✅ Success" >> $GITHUB_STEP_SUMMARY
+            echo "- **JSON Output**: \`${{ steps.scraper.outputs.json_output }}\`" >> $GITHUB_STEP_SUMMARY
+            if [ -n "${{ steps.scraper.outputs.csv_output }}" ]; then
+              echo "- **CSV Output**: \`${{ steps.scraper.outputs.csv_output }}\`" >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "- **File Size**: ${{ steps.analysis.outputs.file_size || 'Unknown' }} bytes" >> $GITHUB_STEP_SUMMARY
+            echo "- **Records**: ${{ steps.analysis.outputs.record_count || 'Unknown' }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Status**: ❌ Failed" >> $GITHUB_STEP_SUMMARY
+            echo "- **Error Code**: ${{ steps.scraper.outputs.error_code || 'Unknown' }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "- **Target**: \`${TARGET}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Mode**: \`${{ needs.setup.outputs.scraper_mode }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Run ID**: \`${{ needs.setup.outputs.run_id }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # POST-PROCESSING AND AGGREGATION
+  # ============================================================================
+  aggregate:
+    name: Aggregate Results
+    runs-on: ubuntu-latest
+    needs: [setup, scrape]
+    if: always() && needs.setup.result == 'success'
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          merge-multiple: true
+      
+      - name: Aggregate results
+        id: aggregate
+        run: |
+          echo "::group::Aggregating scraper results"
+          
+          # Create aggregated output directory
+          mkdir -p aggregated
+          
+          # Count successful and failed jobs
+          TOTAL_JOBS=$(echo '${{ needs.scrape.result }}' | wc -w)
+          SUCCESS_COUNT=0
+          FAILURE_COUNT=0
+          
+          # Aggregate all JSON outputs
+          AGGREGATED_FILE="aggregated/all_results_${{ needs.setup.outputs.run_id }}.json"
+          
+          python3 << 'EOF'
+import json
+import os
+from pathlib import Path
+from datetime import datetime
+
+results = {
+    "aggregation_info": {
+        "run_id": "${{ needs.setup.outputs.run_id }}",
+        "scraper_mode": "${{ needs.setup.outputs.scraper_mode }}",
+        "aggregated_at": datetime.utcnow().isoformat() + "Z",
+        "workflow_run": "${{ github.run_id }}",
+        "total_files": 0,
+        "successful_scrapes": 0,
+        "failed_scrapes": 0
+    },
+    "results": []
+}
+
+artifacts_dir = Path("artifacts")
+if artifacts_dir.exists():
+    for json_file in artifacts_dir.glob("**/*.json"):
+        if json_file.name.startswith("metadata_"):
+            continue  # Skip metadata files
+        
+        try:
+            with open(json_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            results["results"].append({
+                "source_file": str(json_file),
+                "data": data
+            })
+            results["aggregation_info"]["successful_scrapes"] += 1
+            
+        except Exception as e:
+            print(f"Error processing {json_file}: {e}")
+            results["aggregation_info"]["failed_scrapes"] += 1
+        
+        results["aggregation_info"]["total_files"] += 1
+
+# Save aggregated results
+with open("$AGGREGATED_FILE", 'w', encoding='utf-8') as f:
+    json.dump(results, f, indent=2, ensure_ascii=False)
+
+print(f"Aggregated {results['aggregation_info']['successful_scrapes']} successful results")
+print(f"Failed to process {results['aggregation_info']['failed_scrapes']} files")
+EOF
+          
+          echo "aggregated_file=${AGGREGATED_FILE}" >> $GITHUB_OUTPUT
+          echo "::notice::Results aggregated into ${AGGREGATED_FILE}"
+          echo "::endgroup::"
+      
+      - name: Generate summary report
+        run: |
+          REPORT_FILE="aggregated/summary_report_${{ needs.setup.outputs.run_id }}.md"
+          
+          cat > "${REPORT_FILE}" << 'EOF'
+# GitHub API Scraper Summary Report
+
+**Run ID**: `${{ needs.setup.outputs.run_id }}`  
+**Execution Time**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")  
+**Workflow**: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})  
+**Repository**: ${{ github.repository }}  
+**Triggered by**: ${{ github.actor }}  
+
+## Configuration
+
+- **Scraper Mode**: `${{ needs.setup.outputs.scraper_mode }}`
+- **Targets**: `${{ needs.setup.outputs.target }}`
+- **Output Format**: `${{ needs.setup.outputs.output_format }}`
+- **Include Commits**: ${{ needs.setup.outputs.include_commits }}
+- **Include Issues**: ${{ needs.setup.outputs.include_issues }}
+- **Include Pull Requests**: ${{ needs.setup.outputs.include_pull_requests }}
+- **Max Items**: ${{ needs.setup.outputs.max_items }}
+- **Parallel Execution**: ${{ needs.setup.outputs.parallel_execution }}
+
+## Results
+
+EOF
+          
+          # Add job results to report
+          echo "| Target | Status | Output Files |" >> "${REPORT_FILE}"
+          echo "|--------|--------|--------------|" >> "${REPORT_FILE}"
+          
+          # This would need to be populated based on actual job results
+          # For now, add a placeholder
+          echo "| Results will be populated based on job outcomes | - | - |" >> "${REPORT_FILE}"
+          
+          echo "::notice::Summary report generated: ${REPORT_FILE}"
+      
+      - name: Upload aggregated results
+        uses: actions/upload-artifact@v4
+        with:
+          name: aggregated-results-${{ needs.setup.outputs.run_id }}
+          path: aggregated/
+          retention-days: ${{ needs.setup.outputs.artifact_retention_days }}
+          compression-level: 6
+
+  # ============================================================================
+  # NOTIFICATIONS
+  # ============================================================================
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [setup, scrape, aggregate]
+    if: always()
+    timeout-minutes: 10
+    
+    steps:
+      - name: Determine overall status
+        id: status
+        run: |
+          SETUP_STATUS="${{ needs.setup.result }}"
+          SCRAPE_STATUS="${{ needs.scrape.result }}"
+          AGGREGATE_STATUS="${{ needs.aggregate.result }}"
+          
+          if [ "${SETUP_STATUS}" == "success" ] && [ "${SCRAPE_STATUS}" == "success" ] && [ "${AGGREGATE_STATUS}" == "success" ]; then
+            echo "overall_status=success" >> $GITHUB_OUTPUT
+            echo "status_emoji=✅" >> $GITHUB_OUTPUT
+            echo "status_text=Success" >> $GITHUB_OUTPUT
+            echo "status_color=good" >> $GITHUB_OUTPUT
+          elif [ "${SETUP_STATUS}" == "success" ] && [ "${SCRAPE_STATUS}" == "success" ]; then
+            echo "overall_status=partial" >> $GITHUB_OUTPUT
+            echo "status_emoji=⚠️" >> $GITHUB_OUTPUT
+            echo "status_text=Partial Success" >> $GITHUB_OUTPUT
+            echo "status_color=warning" >> $GITHUB_OUTPUT
+          else
+            echo "overall_status=failure" >> $GITHUB_OUTPUT
+            echo "status_emoji=❌" >> $GITHUB_OUTPUT
+            echo "status_text=Failed" >> $GITHUB_OUTPUT
+            echo "status_color=danger" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Send email notification
+        if: needs.setup.outputs.notification_email != ''
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "${{ steps.status.outputs.status_emoji }} GitHub API Scraper - ${{ steps.status.outputs.status_text }}"
+          to: ${{ needs.setup.outputs.notification_email }}
+          from: GitHub Actions <noreply@github.com>
+          html_body: |
+            <h2>${{ steps.status.outputs.status_emoji }} GitHub API Scraper Report</h2>
+            
+            <p><strong>Status:</strong> ${{ steps.status.outputs.status_text }}</p>
+            <p><strong>Run ID:</strong> ${{ needs.setup.outputs.run_id }}</p>
+            <p><strong>Repository:</strong> ${{ github.repository }}</p>
+            <p><strong>Workflow:</strong> <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Run</a></p>
+            
+            <h3>Configuration</h3>
+            <ul>
+              <li><strong>Scraper Mode:</strong> ${{ needs.setup.outputs.scraper_mode }}</li>
+              <li><strong>Targets:</strong> ${{ needs.setup.outputs.target }}</li>
+              <li><strong>Output Format:</strong> ${{ needs.setup.outputs.output_format }}</li>
+            </ul>
+            
+            <h3>Results</h3>
+            <ul>
+              <li><strong>Setup:</strong> ${{ needs.setup.result }}</li>
+              <li><strong>Scraping:</strong> ${{ needs.scrape.result }}</li>
+              <li><strong>Aggregation:</strong> ${{ needs.aggregate.result }}</li>
+            </ul>
+            
+            <p><em>Generated at $(date -u +"%Y-%m-%d %H:%M:%S UTC")</em></p>
+      
+      - name: Send Slack notification
+        if: needs.setup.outputs.slack_webhook != '' || secrets.SLACK_WEBHOOK_URL != ''
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          webhook_url: ${{ needs.setup.outputs.slack_webhook || secrets.SLACK_WEBHOOK_URL }}
+          custom_payload: |
+            {
+              "attachments": [
+                {
+                  "color": "${{ steps.status.outputs.status_color }}",
+                  "title": "${{ steps.status.outputs.status_emoji }} GitHub API Scraper - ${{ steps.status.outputs.status_text }}",
+                  "fields": [
+                    {
+                      "title": "Run ID",
+                      "value": "`${{ needs.setup.outputs.run_id }}`",
+                      "short": true
+                    },
+                    {
+                      "title": "Repository",
+                      "value": "${{ github.repository }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Scraper Mode",
+                      "value": "`${{ needs.setup.outputs.scraper_mode }}`",
+                      "short": true
+                    },
+                    {
+                      "title": "Targets",
+                      "value": "`${{ needs.setup.outputs.target }}`",
+                      "short": true
+                    },
+                    {
+                      "title": "Setup",
+                      "value": "${{ needs.setup.result }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Scraping",
+                      "value": "${{ needs.scrape.result }}",
+                      "short": true
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "type": "button",
+                      "text": "View Workflow",
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ],
+                  "footer": "GitHub Actions",
+                  "ts": $(date +%s)
+                }
+              ]
+            }
+      
+      - name: Create issue on failure
+        if: steps.status.outputs.overall_status == 'failure'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const title = `🚨 GitHub API Scraper Failed - Run ${{ needs.setup.outputs.run_id }}`;
+            const body = `
+            ## Scraper Failure Report
+            
+            **Run ID**: \`${{ needs.setup.outputs.run_id }}\`
+            **Workflow**: [View Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            **Triggered by**: @${{ github.actor }}
+            **Timestamp**: ${new Date().toISOString()}
+            
+            ### Configuration
+            - **Scraper Mode**: \`${{ needs.setup.outputs.scraper_mode }}\`
+            - **Targets**: \`${{ needs.setup.outputs.target }}\`
+            - **Output Format**: \`${{ needs.setup.outputs.output_format }}\`
+            
+            ### Job Results
+            - **Setup**: ${{ needs.setup.result }}
+            - **Scraping**: ${{ needs.scrape.result }}
+            - **Aggregation**: ${{ needs.aggregate.result }}
+            
+            ### Next Steps
+            1. Check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for detailed error information
+            2. Verify GitHub API rate limits and authentication
+            3. Check target repository/user accessibility
+            4. Review scraper configuration parameters
+            
+            ---
+            *This issue was automatically created by the GitHub API Scraper workflow.*
+            `;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['bug', 'scraper-failure', 'automated']
+            });
+      
+      - name: Update job summary
+        if: always()
+        run: |
+          echo "# ${{ steps.status.outputs.status_emoji }} GitHub API Scraper Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Overall Status**: ${{ steps.status.outputs.status_text }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Run ID**: \`${{ needs.setup.outputs.run_id }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Execution Time**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- **Scraper Mode**: \`${{ needs.setup.outputs.scraper_mode }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Targets**: \`${{ needs.setup.outputs.target }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Output Format**: \`${{ needs.setup.outputs.output_format }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Parallel Execution**: ${{ needs.setup.outputs.parallel_execution }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Job Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status | Duration |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Setup | ${{ needs.setup.result }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| Scraping | ${{ needs.scrape.result }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| Aggregation | ${{ needs.aggregate.result }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Rate Limit Status" >> $GITHUB_STEP_SUMMARY
+          echo "- **Core API**: ${{ needs.setup.outputs.rate_limit_status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "*Workflow completed at $(date -u +"%Y-%m-%d %H:%M:%S UTC")*" >> $GITHUB_STEP_SUMMARY
