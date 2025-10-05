@@ -80,6 +80,266 @@ result = scraper.scrape(
 scraper.close()
 ```
 
+## 🐙 GitHub Scraper
+
+The `GitHubScraper` class provides a comprehensive, production-ready interface for scraping GitHub data using the GitHub REST API. It includes automatic rate limiting, pagination, error handling, and support for all major GitHub resources.
+
+### Features
+
+- **Authentication**: Automatic token detection from environment variables
+- **Rate Limiting**: Respects GitHub API rate limits (5000/hr authenticated, 60/hr unauthenticated)
+- **Pagination**: Automatic pagination handling for all list endpoints
+- **Error Handling**: Comprehensive error handling with exponential backoff retry logic
+- **Data Validation**: Built-in validation for GitHub data structures
+- **Context Manager**: Supports Python context manager protocol for automatic cleanup
+
+### Quick Start
+
+```python
+from research_scrapers import GitHubScraper
+
+# Initialize with token (or uses GITHUB_TOKEN env var)
+scraper = GitHubScraper(token="ghp_your_token_here")
+
+# Or use as context manager
+with GitHubScraper() as scraper:
+    # Scrape repository
+    repo_data = scraper.scrape_repository("facebook", "react")
+    print(f"Stars: {repo_data['stargazers_count']}")
+    
+    # Scrape user
+    user_data = scraper.scrape_user("torvalds")
+    print(f"Followers: {user_data['followers']}")
+```
+
+### Examples
+
+#### Repository Scraping
+
+```python
+from research_scrapers import GitHubScraper
+
+scraper = GitHubScraper()
+
+# Get repository details
+repo = scraper.scrape_repository("microsoft", "vscode")
+
+print(f"Repository: {repo['full_name']}")
+print(f"Description: {repo['description']}")
+print(f"Stars: {repo['stargazers_count']}")
+print(f"Forks: {repo['forks_count']}")
+print(f"Language: {repo['language']}")
+print(f"License: {repo['license']['name'] if repo['license'] else 'None'}")
+```
+
+#### User Profile Scraping
+
+```python
+# Get user profile
+user = scraper.scrape_user("guido")
+
+print(f"Name: {user['name']}")
+print(f"Bio: {user['bio']}")
+print(f"Public Repos: {user['public_repos']}")
+print(f"Followers: {user['followers']}")
+print(f"Following: {user['following']}")
+```
+
+#### Organization Scraping
+
+```python
+# Get organization with repositories
+org = scraper.scrape_organization("google")
+
+print(f"Organization: {org['name']}")
+print(f"Description: {org['description']}")
+print(f"Public Repos: {org['public_repos']}")
+print(f"Repositories: {len(org['repositories'])}")
+
+# List first 5 repositories
+for repo in org['repositories'][:5]:
+    print(f"  - {repo['name']}: {repo['stargazers_count']} stars")
+```
+
+#### Issues and Pull Requests
+
+```python
+# Get issues
+issues = scraper.scrape_issues(
+    "facebook", 
+    "react", 
+    state="open",  # 'open', 'closed', or 'all'
+    limit=50
+)
+
+print(f"Found {len(issues)} open issues")
+for issue in issues[:5]:
+    print(f"#{issue['number']}: {issue['title']}")
+
+# Get pull requests
+prs = scraper.scrape_pull_requests(
+    "microsoft", 
+    "vscode", 
+    state="closed",
+    limit=100
+)
+
+print(f"Found {len(prs)} closed pull requests")
+```
+
+#### Search Functionality
+
+```python
+# Search repositories
+repos = scraper.search_repositories(
+    "machine learning language:python stars:>1000",
+    sort="stars",  # 'stars', 'forks', 'updated', or 'help-wanted-issues'
+    limit=50
+)
+
+for repo in repos[:10]:
+    print(f"{repo['full_name']}: {repo['stargazers_count']} stars")
+
+# Search users
+users = scraper.search_users(
+    "location:seattle followers:>100",
+    limit=30
+)
+
+for user in users:
+    print(f"{user['login']}: {user.get('followers', 0)} followers")
+
+# Search code
+code_results = scraper.search_code(
+    "def scrape_repository language:python",
+    limit=30
+)
+
+for result in code_results:
+    print(f"{result['repository']['full_name']}: {result['path']}")
+```
+
+#### Rate Limit Management
+
+```python
+# Check rate limit status
+status = scraper.get_rate_limit_status()
+
+core_limits = status['resources']['core']
+print(f"Rate Limit: {core_limits['remaining']}/{core_limits['limit']}")
+print(f"Resets at: {core_limits['reset']}")
+
+search_limits = status['resources']['search']
+print(f"Search Rate Limit: {search_limits['remaining']}/{search_limits['limit']}")
+```
+
+#### Saving Data
+
+```python
+# Scrape and save data
+repo_data = scraper.scrape_repository("pytorch", "pytorch")
+
+# Save to JSON file
+output_path = scraper.save_data(
+    repo_data, 
+    filename="pytorch_data.json",
+    output_dir="./output"
+)
+
+print(f"Data saved to: {output_path}")
+```
+
+#### Advanced Usage
+
+```python
+from research_scrapers import GitHubScraper
+from pathlib import Path
+
+# Enable caching for repeated requests
+scraper = GitHubScraper(
+    token="ghp_your_token",
+    enable_caching=True
+)
+
+# Batch scrape multiple repositories
+repos_to_scrape = [
+    ("facebook", "react"),
+    ("vuejs", "vue"),
+    ("angular", "angular"),
+]
+
+results = []
+for owner, repo in repos_to_scrape:
+    try:
+        data = scraper.scrape_repository(owner, repo)
+        results.append(data)
+        print(f"✓ Scraped {owner}/{repo}")
+    except Exception as e:
+        print(f"✗ Failed to scrape {owner}/{repo}: {e}")
+
+# Save all results
+scraper.save_data(results, "frameworks_comparison.json")
+
+# Always close the scraper when done
+scraper.close()
+```
+
+### Authentication
+
+The scraper supports multiple authentication methods:
+
+1. **Direct token parameter**:
+   ```python
+   scraper = GitHubScraper(token="ghp_your_token_here")
+   ```
+
+2. **Environment variable**:
+   ```bash
+   export GITHUB_TOKEN="ghp_your_token_here"
+   ```
+   ```python
+   scraper = GitHubScraper()  # Automatically uses GITHUB_TOKEN
+   ```
+
+3. **No authentication** (limited to 60 requests/hour):
+   ```python
+   scraper = GitHubScraper()  # Works without token but with lower rate limits
+   ```
+
+### Error Handling
+
+The scraper includes comprehensive error handling:
+
+```python
+from research_scrapers import GitHubScraper
+from utils import APIError, RateLimitError, ValidationError
+
+scraper = GitHubScraper()
+
+try:
+    # This will raise APIError if repo doesn't exist
+    repo = scraper.scrape_repository("nonexistent", "repo")
+except APIError as e:
+    print(f"API Error: {e}")
+except RateLimitError as e:
+    print(f"Rate limit exceeded: {e}")
+except ValidationError as e:
+    print(f"Data validation failed: {e}")
+```
+
+### Best Practices
+
+1. **Use authentication** for higher rate limits (5000 vs 60 requests/hour)
+2. **Use context manager** for automatic cleanup:
+   ```python
+   with GitHubScraper() as scraper:
+       data = scraper.scrape_repository("owner", "repo")
+   ```
+3. **Monitor rate limits** with `get_rate_limit_status()`
+4. **Handle errors gracefully** with try/except blocks
+5. **Use pagination limits** to avoid excessive API calls
+6. **Enable caching** for development/testing to reduce API calls
+
 ## 📁 Project Structure
 
 ```
@@ -88,10 +348,12 @@ research-scrapers/
 │   └── research_scrapers/
 │       ├── __init__.py
 │       ├── scraper.py          # Core scraping classes
+│       ├── github_scraper.py   # GitHub API scraper
 │       ├── utils.py            # Utility functions
 │       └── config.py           # Configuration management
 ├── tests/
 │   ├── test_scraper.py
+│   ├── test_github_scraper.py  # GitHub scraper tests
 │   ├── test_utils.py
 │   └── test_config.py
 ├── docs/
