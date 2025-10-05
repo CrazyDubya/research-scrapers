@@ -4,11 +4,27 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-A comprehensive toolkit for scraping and analyzing data from various research sources. This package provides a robust, extensible framework for web scraping with built-in rate limiting, error handling, and support for both static and JavaScript-heavy websites.
+A comprehensive toolkit for scraping and analyzing data from various research and project management sources. This package provides a robust, extensible framework for web scraping with built-in rate limiting, error handling, and support for both static and JavaScript-heavy websites.
+
+## 🎯 What's New
+
+### 🚀 Linear Integration Coming Soon (RUB-50)
+We're actively developing a comprehensive Linear API integration to enable seamless project management workflows. This will include:
+- Issue and project data extraction from Linear workspaces
+- Synchronization between Linear, GitHub, and other platforms
+- Automated workflow management and analytics
+- **Track Progress**: [Linear Project RUB-50](https://linear.app/rubberducky/issue/RUB-50)
+
+### 📚 Enhanced Documentation
+- **Roadmap**: See our [ROADMAP.md](ROADMAP.md) for planned features and timeline
+- **Notion Documentation**: Comprehensive planning and architecture docs available in our Notion workspace
+- **Integration Guides**: Detailed guides for platform integrations and workflows
 
 ## 🎆 Features
 
 - **Multiple Scraping Engines**: Support for both requests/BeautifulSoup and Selenium
+- **GitHub Integration**: Production-ready GitHub API scraper with full feature support
+- **Linear Integration**: *Coming Soon* - Comprehensive Linear API integration (RUB-50)
 - **Rate Limiting**: Built-in rate limiting to respect website policies
 - **Error Handling**: Robust retry mechanisms with exponential backoff
 - **Configuration Management**: Flexible configuration via files, environment variables, or code
@@ -340,6 +356,33 @@ except ValidationError as e:
 5. **Use pagination limits** to avoid excessive API calls
 6. **Enable caching** for development/testing to reduce API calls
 
+## 🔮 Linear Integration (Coming Soon)
+
+We're developing a comprehensive Linear API integration as part of project **RUB-50**. This will enable:
+
+### Planned Features
+- **Issue Management**: Extract and manage Linear issues, sub-issues, and projects
+- **Team Analytics**: Analyze team performance and project metrics
+- **Cross-Platform Sync**: Synchronize data between Linear, GitHub, and other platforms
+- **Workflow Automation**: Automate project management workflows
+- **Real-time Updates**: Webhook support for live data synchronization
+
+### Preview Usage
+```python
+# Coming soon in v2.0
+from research_scrapers import LinearScraper
+
+scraper = LinearScraper(api_key="lin_api_xxx")
+
+# Get team issues
+issues = scraper.scrape_issues(team_key="RUB", state="active")
+
+# Sync with GitHub
+scraper.sync_to_github("CrazyDubya/research-scrapers")
+```
+
+**Track Progress**: [RUB-50 Linear Integration](https://linear.app/rubberducky/issue/RUB-50)
+
 ## 📁 Project Structure
 
 ```
@@ -349,6 +392,7 @@ research-scrapers/
 │       ├── __init__.py
 │       ├── scraper.py          # Core scraping classes
 │       ├── github_scraper.py   # GitHub API scraper
+│       ├── linear/             # Linear integration (coming soon)
 │       ├── utils.py            # Utility functions
 │       └── config.py           # Configuration management
 ├── tests/
@@ -359,13 +403,18 @@ research-scrapers/
 ├── docs/
 │   ├── getting-started.md
 │   ├── api-reference.md
-│   └── configuration.md
+│   ├── configuration.md
+│   ├── INTEGRATION_GUIDE.md    # Platform integration guide
+│   ├── API_ARCHITECTURE.md     # System architecture
+│   └── SECURITY_ARCHITECTURE.md
 ├── scripts/
 │   ├── example_basic_scraping.py
 │   ├── example_selenium_scraping.py
 │   ├── example_batch_scraping.py
 │   └── setup.py
 ├── requirements.txt
+├── requirements-linear.txt     # Linear integration dependencies
+├── ROADMAP.md                  # Project roadmap and planned features
 ├── setup.py
 ├── .gitignore
 └── README.md
@@ -382,6 +431,7 @@ export SCRAPER_REQUEST_TIMEOUT=60
 export SCRAPER_RATE_LIMIT=2.0
 export SCRAPER_LOG_LEVEL=DEBUG
 export GITHUB_API_KEY=your_token_here
+export LINEAR_API_KEY=your_linear_token  # Coming soon
 ```
 
 ### Configuration File
@@ -392,7 +442,8 @@ export GITHUB_API_KEY=your_token_here
   "rate_limit": 1.5,
   "log_level": "INFO",
   "api_keys": {
-    "github": "your_github_token"
+    "github": "your_github_token",
+    "linear": "your_linear_token"
   }
 }
 ```
@@ -406,6 +457,7 @@ config = Config()
 config.REQUEST_TIMEOUT = 60
 config.RATE_LIMIT = 2.0
 config.set_api_key('github', 'your_token')
+config.set_api_key('linear', 'your_linear_token')  # Coming soon
 ```
 
 ## 📚 Examples
@@ -480,8 +532,15 @@ Comprehensive documentation is available in the `docs/` directory:
 
 - [Getting Started](docs/getting-started.md) - Installation and basic usage
 - [Configuration](docs/configuration.md) - Detailed configuration options
-- [API Reference](docs/api-reference.md) - Complete API documentation
-- [Examples](docs/examples/) - Advanced usage examples
+- [Integration Guide](docs/INTEGRATION_GUIDE.md) - Platform integration patterns
+- [API Architecture](docs/API_ARCHITECTURE.md) - System design and architecture
+- [Security Architecture](docs/SECURITY_ARCHITECTURE.md) - Security best practices
+- [Roadmap](ROADMAP.md) - Planned features and timeline
+
+### External Documentation
+
+- **Notion Workspace**: Comprehensive project planning, requirements, and architecture documentation
+- **Linear Project**: [RUB-50](https://linear.app/rubberducky/issue/RUB-50) - Track Linear integration progress
 
 ## 🔍 Key Components
 
@@ -490,6 +549,8 @@ Comprehensive documentation is available in the `docs/` directory:
 - **`BaseScraper`**: Abstract base class for all scrapers
 - **`WebScraper`**: HTTP-based scraper using requests and BeautifulSoup
 - **`SeleniumScraper`**: Browser-based scraper for JavaScript sites
+- **`GitHubScraper`**: Production-ready GitHub API integration
+- **`LinearScraper`**: *Coming Soon* - Linear API integration (RUB-50)
 - **`Config`**: Configuration management with multiple sources
 
 ### Utilities
@@ -511,6 +572,7 @@ Comprehensive documentation is available in the `docs/` directory:
 - ✅ **Logging**: Comprehensive logging with multiple levels
 - ✅ **Configuration**: Environment variables, files, and programmatic
 - ✅ **Testing**: Full test suite with mocking
+- 🚧 **Linear Integration**: In development (RUB-50)
 
 ## 🔄 Workflow Examples
 
@@ -532,6 +594,25 @@ for url in paper_urls:
     })
 
 save_to_json(papers, 'research_papers.json')
+```
+
+### Project Management Workflow (Coming Soon)
+
+```python
+# Sync Linear issues with GitHub (RUB-50)
+from research_scrapers import LinearScraper, GitHubScraper
+from research_scrapers.integrations import sync_linear_to_github
+
+# Get Linear issues
+linear = LinearScraper(api_key="lin_api_xxx")
+issues = linear.scrape_issues(team_key="RUB")
+
+# Sync to GitHub
+sync_linear_to_github(
+    linear_issues=issues,
+    github_repo="CrazyDubya/research-scrapers",
+    mapping_config="./config/sync-mapping.json"
+)
 ```
 
 ### Social Media Analysis
@@ -599,6 +680,22 @@ save_to_json(posts, f'social_posts_{hashtag}.json')
    batches = batch_process(urls, batch_size=10)
    ```
 
+## 🗺️ Roadmap & Future Plans
+
+See our comprehensive [ROADMAP.md](ROADMAP.md) for detailed information about:
+
+- **Linear Integration (RUB-50)**: Timeline, features, and implementation details
+- **Notion API Integration**: Planned for Q3 2025
+- **Additional Platform Integrations**: Jira, GitLab, Confluence
+- **Performance Enhancements**: Async support, caching improvements
+- **Developer Experience**: CLI tools, VS Code extension, Docker support
+
+**Key Milestones:**
+- **Q1 2025**: Linear integration core features
+- **Q2 2025**: GitHub-Linear synchronization
+- **Q3 2025**: Notion integration and web dashboard
+- **Q4 2025**: Enterprise features and plugin architecture
+
 ## 🤝 Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](docs/contributing.md) for guidelines.
@@ -620,6 +717,12 @@ We welcome contributions! Please see [CONTRIBUTING.md](docs/contributing.md) for
 - Add tests for new features
 - Update documentation as needed
 
+### Project Tracking
+
+- **Linear Project**: [RUB-50](https://linear.app/rubberducky/issue/RUB-50) for Linear integration
+- **GitHub Issues**: For bug reports and feature requests
+- **Notion Workspace**: For detailed planning and architecture docs
+
 ## 📜 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -637,6 +740,8 @@ For questions, issues, or feature requests:
 - 🐛 [Report bugs](https://github.com/CrazyDubya/research-scrapers/issues)
 - 💡 [Request features](https://github.com/CrazyDubya/research-scrapers/issues)
 - 💬 [Discussions](https://github.com/CrazyDubya/research-scrapers/discussions)
+- 📋 [Linear Project Board](https://linear.app/rubberducky/project/rub-50) - Track development progress
+- 📚 **Notion Documentation** - Request access for detailed project docs
 
 ---
 
