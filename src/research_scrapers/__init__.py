@@ -8,6 +8,7 @@ __author__ = "Stephen Thompson"
 __email__ = "your.email@example.com"
 
 from .scraper import BaseScraper, WebScraper
+from .github_scraper import GitHubScraper
 from .utils import (
     setup_logging,
     rate_limit,
@@ -21,6 +22,7 @@ from .config import Config
 __all__ = [
     "BaseScraper",
     "WebScraper",
+    "GitHubScraper",
     "Config",
     "setup_logging",
     "rate_limit",
