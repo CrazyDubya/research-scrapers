@@ -8,6 +8,15 @@ A comprehensive toolkit for scraping and analyzing data from various research an
 
 ## 🎯 What's New
 
+### 📚 ArXiv Research Paper Scraper
+**NEW**: Comprehensive ArXiv scraper with advanced features:
+- ArXiv API integration with XML parsing
+- Search by categories, authors, date ranges, keywords
+- PDF download and full-text extraction
+- Batch operations with concurrent processing
+- Multiple output formats (JSON, CSV, XML)
+- Rate limiting per ArXiv guidelines
+
 ### 🚀 Linear Integration Coming Soon (RUB-50)
 We're actively developing a comprehensive Linear API integration to enable seamless project management workflows. This will include:
 - Issue and project data extraction from Linear workspaces
@@ -24,6 +33,7 @@ We're actively developing a comprehensive Linear API integration to enable seaml
 
 - **Multiple Scraping Engines**: Support for both requests/BeautifulSoup and Selenium
 - **GitHub Integration**: Production-ready GitHub API scraper with full feature support
+- **ArXiv Integration**: Comprehensive ArXiv research paper scraper with PDF processing
 - **Linear Integration**: *Coming Soon* - Comprehensive Linear API integration (RUB-50)
 - **Rate Limiting**: Built-in rate limiting to respect website policies
 - **Error Handling**: Robust retry mechanisms with exponential backoff
@@ -78,23 +88,93 @@ save_to_json(result, 'output/scraped_data.json')
 scraper.close()
 ```
 
-### Selenium for JavaScript Sites
+## 📚 ArXiv Research Paper Scraper
+
+The ArXiv scraper provides comprehensive access to ArXiv research papers with advanced search capabilities, PDF processing, and text extraction.
+
+### Features
+
+- **ArXiv API Integration**: Native XML parsing of ArXiv API responses
+- **Advanced Search**: Search by categories, authors, keywords, date ranges
+- **PDF Processing**: Multiple PDF engines (pdfplumber, PyPDF2, pdfminer)
+- **Text Extraction**: Full-text extraction from research papers
+- **Batch Operations**: Concurrent processing of multiple papers
+- **Rate Limiting**: Complies with ArXiv's 3-second rate limit guidelines
+- **Multiple Formats**: Export to JSON, CSV, XML
+
+### Quick Start
+
+```bash
+# Search for machine learning papers
+python arxiv_scraper.py --query "machine learning" --max-results 50
+
+# Search by category with full content
+python arxiv_scraper.py --categories cs.AI cs.LG --include-pdf --include-full-text
+
+# Get specific paper
+python arxiv_scraper.py --paper-id 2301.07041 --include-full-text
+
+# Recent papers in AI
+python arxiv_scraper.py --recent-days 7 --categories cs.AI --max-results 100
+```
+
+### Programming Interface
 
 ```python
-from research_scrapers.scraper import SeleniumScraper
+from arxiv_scraper import ArxivScraper, ArxivSearchOptions
 
-# Create Selenium scraper
-scraper = SeleniumScraper(browser='chrome', headless=True)
+# Initialize scraper
+scraper = ArxivScraper()
 
-# Scrape JavaScript-heavy site
-result = scraper.scrape(
-    'https://spa-example.com',
-    wait_for_element='.dynamic-content',
-    selector='.data-item'
+# Create search options
+options = ArxivSearchOptions(
+    query="deep learning",
+    categories=["cs.AI", "cs.LG"],
+    max_results=50,
+    include_pdf=True,
+    include_full_text=True
 )
 
-scraper.close()
+# Perform search
+papers = scraper.search_papers(options)
+
+# Process results
+for paper in papers:
+    print(f"Title: {paper.title}")
+    print(f"Authors: {', '.join(paper.authors)}")
+    print(f"Categories: {', '.join(paper.categories)}")
+    if paper.full_text:
+        print(f"Full text length: {len(paper.full_text)} characters")
 ```
+
+### Advanced Examples
+
+```bash
+# Search with author and date filters
+python arxiv_scraper.py --query "quantum computing" --authors "John Preskill" \
+  --start-date 2023-01-01 --end-date 2023-12-31
+
+# Batch download specific papers
+python arxiv_scraper.py --paper-ids 2301.07041 2302.12345 2303.56789 \
+  --include-pdf --extract-references
+
+# Export to different formats
+python arxiv_scraper.py --query "neural networks" --format csv --output results.csv
+
+# Show available categories
+python arxiv_scraper.py --show-categories
+```
+
+### ArXiv Categories
+
+The scraper supports all ArXiv categories including:
+
+- **Computer Science**: `cs.AI` (Artificial Intelligence), `cs.LG` (Machine Learning), `cs.CV` (Computer Vision)
+- **Physics**: `quant-ph` (Quantum Physics), `cond-mat` (Condensed Matter), `astro-ph` (Astrophysics)
+- **Mathematics**: `math.AG` (Algebraic Geometry), `math.NT` (Number Theory)
+- **Other Fields**: `q-bio` (Quantitative Biology), `q-fin` (Quantitative Finance), `stat` (Statistics)
+
+See the [ArXiv Scraper Guide](docs/ARXIV_SCRAPER_GUIDE.md) for complete documentation.
 
 ## 🐙 GitHub Scraper
 
@@ -148,214 +228,6 @@ print(f"Language: {repo['language']}")
 print(f"License: {repo['license']['name'] if repo['license'] else 'None'}")
 ```
 
-#### User Profile Scraping
-
-```python
-# Get user profile
-user = scraper.scrape_user("guido")
-
-print(f"Name: {user['name']}")
-print(f"Bio: {user['bio']}")
-print(f"Public Repos: {user['public_repos']}")
-print(f"Followers: {user['followers']}")
-print(f"Following: {user['following']}")
-```
-
-#### Organization Scraping
-
-```python
-# Get organization with repositories
-org = scraper.scrape_organization("google")
-
-print(f"Organization: {org['name']}")
-print(f"Description: {org['description']}")
-print(f"Public Repos: {org['public_repos']}")
-print(f"Repositories: {len(org['repositories'])}")
-
-# List first 5 repositories
-for repo in org['repositories'][:5]:
-    print(f"  - {repo['name']}: {repo['stargazers_count']} stars")
-```
-
-#### Issues and Pull Requests
-
-```python
-# Get issues
-issues = scraper.scrape_issues(
-    "facebook", 
-    "react", 
-    state="open",  # 'open', 'closed', or 'all'
-    limit=50
-)
-
-print(f"Found {len(issues)} open issues")
-for issue in issues[:5]:
-    print(f"#{issue['number']}: {issue['title']}")
-
-# Get pull requests
-prs = scraper.scrape_pull_requests(
-    "microsoft", 
-    "vscode", 
-    state="closed",
-    limit=100
-)
-
-print(f"Found {len(prs)} closed pull requests")
-```
-
-#### Search Functionality
-
-```python
-# Search repositories
-repos = scraper.search_repositories(
-    "machine learning language:python stars:>1000",
-    sort="stars",  # 'stars', 'forks', 'updated', or 'help-wanted-issues'
-    limit=50
-)
-
-for repo in repos[:10]:
-    print(f"{repo['full_name']}: {repo['stargazers_count']} stars")
-
-# Search users
-users = scraper.search_users(
-    "location:seattle followers:>100",
-    limit=30
-)
-
-for user in users:
-    print(f"{user['login']}: {user.get('followers', 0)} followers")
-
-# Search code
-code_results = scraper.search_code(
-    "def scrape_repository language:python",
-    limit=30
-)
-
-for result in code_results:
-    print(f"{result['repository']['full_name']}: {result['path']}")
-```
-
-#### Rate Limit Management
-
-```python
-# Check rate limit status
-status = scraper.get_rate_limit_status()
-
-core_limits = status['resources']['core']
-print(f"Rate Limit: {core_limits['remaining']}/{core_limits['limit']}")
-print(f"Resets at: {core_limits['reset']}")
-
-search_limits = status['resources']['search']
-print(f"Search Rate Limit: {search_limits['remaining']}/{search_limits['limit']}")
-```
-
-#### Saving Data
-
-```python
-# Scrape and save data
-repo_data = scraper.scrape_repository("pytorch", "pytorch")
-
-# Save to JSON file
-output_path = scraper.save_data(
-    repo_data, 
-    filename="pytorch_data.json",
-    output_dir="./output"
-)
-
-print(f"Data saved to: {output_path}")
-```
-
-#### Advanced Usage
-
-```python
-from research_scrapers import GitHubScraper
-from pathlib import Path
-
-# Enable caching for repeated requests
-scraper = GitHubScraper(
-    token="ghp_your_token",
-    enable_caching=True
-)
-
-# Batch scrape multiple repositories
-repos_to_scrape = [
-    ("facebook", "react"),
-    ("vuejs", "vue"),
-    ("angular", "angular"),
-]
-
-results = []
-for owner, repo in repos_to_scrape:
-    try:
-        data = scraper.scrape_repository(owner, repo)
-        results.append(data)
-        print(f"✓ Scraped {owner}/{repo}")
-    except Exception as e:
-        print(f"✗ Failed to scrape {owner}/{repo}: {e}")
-
-# Save all results
-scraper.save_data(results, "frameworks_comparison.json")
-
-# Always close the scraper when done
-scraper.close()
-```
-
-### Authentication
-
-The scraper supports multiple authentication methods:
-
-1. **Direct token parameter**:
-   ```python
-   scraper = GitHubScraper(token="ghp_your_token_here")
-   ```
-
-2. **Environment variable**:
-   ```bash
-   export GITHUB_TOKEN="ghp_your_token_here"
-   ```
-   ```python
-   scraper = GitHubScraper()  # Automatically uses GITHUB_TOKEN
-   ```
-
-3. **No authentication** (limited to 60 requests/hour):
-   ```python
-   scraper = GitHubScraper()  # Works without token but with lower rate limits
-   ```
-
-### Error Handling
-
-The scraper includes comprehensive error handling:
-
-```python
-from research_scrapers import GitHubScraper
-from utils import APIError, RateLimitError, ValidationError
-
-scraper = GitHubScraper()
-
-try:
-    # This will raise APIError if repo doesn't exist
-    repo = scraper.scrape_repository("nonexistent", "repo")
-except APIError as e:
-    print(f"API Error: {e}")
-except RateLimitError as e:
-    print(f"Rate limit exceeded: {e}")
-except ValidationError as e:
-    print(f"Data validation failed: {e}")
-```
-
-### Best Practices
-
-1. **Use authentication** for higher rate limits (5000 vs 60 requests/hour)
-2. **Use context manager** for automatic cleanup:
-   ```python
-   with GitHubScraper() as scraper:
-       data = scraper.scrape_repository("owner", "repo")
-   ```
-3. **Monitor rate limits** with `get_rate_limit_status()`
-4. **Handle errors gracefully** with try/except blocks
-5. **Use pagination limits** to avoid excessive API calls
-6. **Enable caching** for development/testing to reduce API calls
-
 ## 🔮 Linear Integration (Coming Soon)
 
 We're developing a comprehensive Linear API integration as part of project **RUB-50**. This will enable:
@@ -387,6 +259,12 @@ scraper.sync_to_github("CrazyDubya/research-scrapers")
 
 ```
 research-scrapers/
+├── arxiv_scraper.py           # ArXiv research paper scraper
+├── github_repo_scraper.py     # GitHub repository scraper
+├── github_issue_scraper.py    # GitHub issues scraper
+├── github_user_scraper.py     # GitHub user scraper
+├── utils.py                   # Utility functions and classes
+├── config.py                  # Configuration management
 ├── src/
 │   └── research_scrapers/
 │       ├── __init__.py
@@ -398,10 +276,12 @@ research-scrapers/
 ├── tests/
 │   ├── test_scraper.py
 │   ├── test_github_scraper.py  # GitHub scraper tests
+│   ├── test_arxiv_scraper.py   # ArXiv scraper tests
 │   ├── test_utils.py
 │   └── test_config.py
 ├── docs/
 │   ├── getting-started.md
+│   ├── ARXIV_SCRAPER_GUIDE.md  # Comprehensive ArXiv documentation
 │   ├── api-reference.md
 │   ├── configuration.md
 │   ├── INTEGRATION_GUIDE.md    # Platform integration guide
@@ -462,6 +342,52 @@ config.set_api_key('linear', 'your_linear_token')  # Coming soon
 
 ## 📚 Examples
 
+### ArXiv Research Workflow
+
+```python
+# Daily research update workflow
+from arxiv_scraper import ArxivScraper, ArxivSearchOptions
+
+def daily_research_update():
+    scraper = ArxivScraper()
+    
+    # Get recent papers in your field
+    papers = scraper.search_recent_papers(
+        days=1,
+        categories=["cs.AI", "cs.LG", "cs.CV"],
+        max_results=50
+    )
+    
+    # Filter by keywords
+    relevant_papers = [
+        paper for paper in papers
+        if any(keyword in paper.title.lower() or keyword in paper.abstract.lower()
+               for keyword in ["neural", "deep learning", "transformer"])
+    ]
+    
+    return relevant_papers
+```
+
+### Literature Review
+
+```python
+# Comprehensive literature review
+def literature_review(topic, start_year=2020):
+    scraper = ArxivScraper()
+    
+    options = ArxivSearchOptions(
+        query=topic,
+        start_date=f"{start_year}-01-01",
+        max_results=200,
+        include_pdf=True,
+        include_full_text=True,
+        extract_references=True
+    )
+    
+    papers = scraper.search_papers(options)
+    return papers
+```
+
 ### Basic Web Scraping
 
 ```python
@@ -510,20 +436,20 @@ pytest tests/ -v
 pytest tests/ --cov=research_scrapers --cov-report=html
 
 # Run specific test file
-pytest tests/test_scraper.py -v
+pytest tests/test_arxiv_scraper.py -v
 ```
 
 ### Code Quality
 
 ```bash
 # Format code
-black src/ tests/ scripts/
+black src/ tests/ scripts/ *.py
 
 # Lint code
-flake8 src/ tests/ scripts/
+flake8 src/ tests/ scripts/ *.py
 
 # Type checking
-mypy src/research_scrapers/
+mypy src/research_scrapers/ *.py
 ```
 
 ## 📝 Documentation
@@ -531,6 +457,7 @@ mypy src/research_scrapers/
 Comprehensive documentation is available in the `docs/` directory:
 
 - [Getting Started](docs/getting-started.md) - Installation and basic usage
+- [ArXiv Scraper Guide](docs/ARXIV_SCRAPER_GUIDE.md) - Complete ArXiv scraper documentation
 - [Configuration](docs/configuration.md) - Detailed configuration options
 - [Integration Guide](docs/INTEGRATION_GUIDE.md) - Platform integration patterns
 - [API Architecture](docs/API_ARCHITECTURE.md) - System design and architecture
@@ -550,6 +477,7 @@ Comprehensive documentation is available in the `docs/` directory:
 - **`WebScraper`**: HTTP-based scraper using requests and BeautifulSoup
 - **`SeleniumScraper`**: Browser-based scraper for JavaScript sites
 - **`GitHubScraper`**: Production-ready GitHub API integration
+- **`ArxivScraper`**: Comprehensive ArXiv research paper scraper
 - **`LinearScraper`**: *Coming Soon* - Linear API integration (RUB-50)
 - **`Config`**: Configuration management with multiple sources
 
@@ -572,68 +500,8 @@ Comprehensive documentation is available in the `docs/` directory:
 - ✅ **Logging**: Comprehensive logging with multiple levels
 - ✅ **Configuration**: Environment variables, files, and programmatic
 - ✅ **Testing**: Full test suite with mocking
+- ✅ **ArXiv Integration**: Complete research paper scraping
 - 🚧 **Linear Integration**: In development (RUB-50)
-
-## 🔄 Workflow Examples
-
-### Research Paper Collection
-
-```python
-# Scrape academic paper metadata
-from research_scrapers import WebScraper
-
-scraper = WebScraper()
-papers = []
-
-for url in paper_urls:
-    result = scraper.scrape(url, selector='.paper-title, .abstract')
-    papers.append({
-        'title': result['selected_content'][0],
-        'abstract': result['selected_content'][1],
-        'url': url
-    })
-
-save_to_json(papers, 'research_papers.json')
-```
-
-### Project Management Workflow (Coming Soon)
-
-```python
-# Sync Linear issues with GitHub (RUB-50)
-from research_scrapers import LinearScraper, GitHubScraper
-from research_scrapers.integrations import sync_linear_to_github
-
-# Get Linear issues
-linear = LinearScraper(api_key="lin_api_xxx")
-issues = linear.scrape_issues(team_key="RUB")
-
-# Sync to GitHub
-sync_linear_to_github(
-    linear_issues=issues,
-    github_repo="CrazyDubya/research-scrapers",
-    mapping_config="./config/sync-mapping.json"
-)
-```
-
-### Social Media Analysis
-
-```python
-# Scrape social media posts (with proper authentication)
-from research_scrapers.scraper import SeleniumScraper
-
-scraper = SeleniumScraper(headless=True)
-posts = []
-
-for hashtag in hashtags:
-    result = scraper.scrape(
-        f'https://example-social.com/hashtag/{hashtag}',
-        selector='.post-content',
-        wait_for_element='.posts-loaded'
-    )
-    posts.extend(result['selected_content'])
-
-save_to_json(posts, f'social_posts_{hashtag}.json')
-```
 
 ## 🔒 Security & Ethics
 
@@ -662,19 +530,24 @@ save_to_json(posts, f'social_posts_{hashtag}.json')
    pip install webdriver-manager
    ```
 
-2. **Rate limiting too aggressive**
+2. **PDF processing libraries missing**
+   ```bash
+   pip install PyPDF2 pdfplumber pdfminer.six
+   ```
+
+3. **Rate limiting too aggressive**
    ```python
    config.RATE_LIMIT = 0.5  # Slower rate
    ```
 
-3. **JavaScript not loading**
+4. **JavaScript not loading**
    ```python
    # Use Selenium with explicit waits
    scraper = SeleniumScraper()
    result = scraper.scrape(url, wait_for_element='.content')
    ```
 
-4. **Memory issues with large datasets**
+5. **Memory issues with large datasets**
    ```python
    # Process in smaller batches
    batches = batch_process(urls, batch_size=10)
@@ -731,6 +604,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Built with [requests](https://requests.readthedocs.io/) and [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/)
 - Selenium integration for JavaScript support
+- ArXiv API for research paper access
+- PDF processing libraries: PyPDF2, pdfplumber, pdfminer
 - Inspired by the research community's need for reliable data collection tools
 
 ## 📞 Support
