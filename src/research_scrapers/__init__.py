@@ -10,6 +10,7 @@ __email__ = "your.email@example.com"
 from .scraper import BaseScraper, WebScraper
 from .github_scraper import GitHubScraper
 from .stackoverflow_scraper import StackOverflowScraper
+from .patent_scraper import PatentScraper, Patent, PatentSearchOptions
 from .utils import (
     setup_logging,
     rate_limit,
@@ -25,6 +26,9 @@ __all__ = [
     "WebScraper",
     "GitHubScraper",
     "StackOverflowScraper",
+    "PatentScraper",
+    "Patent",
+    "PatentSearchOptions",
     "Config",
     "setup_logging",
     "rate_limit",
