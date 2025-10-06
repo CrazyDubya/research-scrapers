@@ -9,6 +9,7 @@ __email__ = "your.email@example.com"
 
 from .scraper import BaseScraper, WebScraper
 from .github_scraper import GitHubScraper
+from .stackoverflow_scraper import StackOverflowScraper
 from .utils import (
     setup_logging,
     rate_limit,
@@ -23,6 +24,7 @@ __all__ = [
     "BaseScraper",
     "WebScraper",
     "GitHubScraper",
+    "StackOverflowScraper",
     "Config",
     "setup_logging",
     "rate_limit",
