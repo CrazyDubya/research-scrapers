@@ -17,6 +17,24 @@ A comprehensive toolkit for scraping and analyzing data from various research an
 - Multiple output formats (JSON, CSV, XML)
 - Rate limiting per ArXiv guidelines
 
+### 💡 Stack Overflow Scraper
+**NEW**: Production-ready Stack Overflow scraper:
+- Stack Overflow API integration with comprehensive search
+- Question and answer extraction with metadata
+- User profile and reputation tracking
+- Tag-based filtering and advanced search queries
+- Rate limiting per Stack Overflow API guidelines
+- Export to multiple formats with rich metadata
+
+### 📋 Patent Database Scraper
+**NEW**: Comprehensive patent research tool:
+- USPTO Patent API integration
+- Google Patents scraper with BeautifulSoup parsing
+- Search by inventors, assignees, CPC codes, keywords
+- Patent metadata extraction (claims, citations, legal status)
+- Date range filtering and patent family tracking
+- Full-text patent content extraction
+
 ### 🚀 Linear Integration Coming Soon (RUB-50)
 We're actively developing a comprehensive Linear API integration to enable seamless project management workflows. This will include:
 - Issue and project data extraction from Linear workspaces
@@ -34,6 +52,8 @@ We're actively developing a comprehensive Linear API integration to enable seaml
 - **Multiple Scraping Engines**: Support for both requests/BeautifulSoup and Selenium
 - **GitHub Integration**: Production-ready GitHub API scraper with full feature support
 - **ArXiv Integration**: Comprehensive ArXiv research paper scraper with PDF processing
+- **Stack Overflow Integration**: Complete Stack Overflow API scraper with Q&A extraction
+- **Patent Integration**: USPTO and Google Patents scraper with comprehensive search
 - **Linear Integration**: *Coming Soon* - Comprehensive Linear API integration (RUB-50)
 - **Rate Limiting**: Built-in rate limiting to respect website policies
 - **Error Handling**: Robust retry mechanisms with exponential backoff
@@ -147,34 +167,140 @@ for paper in papers:
         print(f"Full text length: {len(paper.full_text)} characters")
 ```
 
-### Advanced Examples
+See the [ArXiv Scraper Guide](docs/ARXIV_SCRAPER_GUIDE.md) for complete documentation.
+
+## 💡 Stack Overflow Scraper
+
+The Stack Overflow scraper provides comprehensive access to Stack Overflow data through the official API, enabling research and analysis of programming Q&A content.
+
+### Features
+
+- **Stack Overflow API Integration**: Official API with authentication support
+- **Comprehensive Search**: Questions, answers, users, tags, and comments
+- **Advanced Filtering**: By tags, date ranges, scores, activity
+- **User Analytics**: Reputation tracking, badge analysis, activity patterns
+- **Content Extraction**: Full question/answer text with formatting preservation
+- **Rate Limiting**: Respects Stack Overflow API quotas and guidelines
+- **Rich Metadata**: Vote counts, view counts, accepted answers, user profiles
+
+### Quick Start
 
 ```bash
-# Search with author and date filters
-python arxiv_scraper.py --query "quantum computing" --authors "John Preskill" \
-  --start-date 2023-01-01 --end-date 2023-12-31
+# Search questions by tags
+python stackoverflow_scraper.py --tags python machine-learning --max-results 100
 
-# Batch download specific papers
-python arxiv_scraper.py --paper-ids 2301.07041 2302.12345 2303.56789 \
-  --include-pdf --extract-references
+# Search by keywords
+python stackoverflow_scraper.py --query "neural networks" --sort activity --max-results 50
 
-# Export to different formats
-python arxiv_scraper.py --query "neural networks" --format csv --output results.csv
+# Get user information
+python stackoverflow_scraper.py --user-ids 12345 67890 --include-user-details
 
-# Show available categories
-python arxiv_scraper.py --show-categories
+# Search recent questions
+python stackoverflow_scraper.py --recent-days 7 --tags python --min-score 5
+
+# Export to CSV
+python stackoverflow_scraper.py --tags javascript --format csv --output js_questions.csv
 ```
 
-### ArXiv Categories
+### Programming Interface
 
-The scraper supports all ArXiv categories including:
+```python
+from research_scrapers.stackoverflow_scraper import StackOverflowScraper, ScrapingOptions
 
-- **Computer Science**: `cs.AI` (Artificial Intelligence), `cs.LG` (Machine Learning), `cs.CV` (Computer Vision)
-- **Physics**: `quant-ph` (Quantum Physics), `cond-mat` (Condensed Matter), `astro-ph` (Astrophysics)
-- **Mathematics**: `math.AG` (Algebraic Geometry), `math.NT` (Number Theory)
-- **Other Fields**: `q-bio` (Quantitative Biology), `q-fin` (Quantitative Finance), `stat` (Statistics)
+# Initialize scraper (API key optional but recommended)
+scraper = StackOverflowScraper(api_key="your_api_key")
 
-See the [ArXiv Scraper Guide](docs/ARXIV_SCRAPER_GUIDE.md) for complete documentation.
+# Create search options
+options = ScrapingOptions(
+    tags=["python", "machine-learning"],
+    max_results=100,
+    include_answers=True,
+    include_comments=True,
+    min_score=5
+)
+
+# Search questions
+questions = scraper.search_questions(options)
+
+# Process results
+for question in questions:
+    print(f"Title: {question.title}")
+    print(f"Score: {question.score}")
+    print(f"Tags: {', '.join(question.tags)}")
+    print(f"Answers: {len(question.answers)}")
+```
+
+See the [Stack Overflow Scraper Guide](docs/STACKOVERFLOW_SCRAPER.md) for complete documentation.
+
+## 📋 Patent Database Scraper
+
+The Patent scraper provides unified access to multiple patent databases including USPTO and Google Patents for comprehensive patent research and analysis.
+
+### Features
+
+- **USPTO Patent API Integration**: Official USPTO API with full search capabilities
+- **Google Patents Scraper**: BeautifulSoup-based scraper for additional coverage
+- **Advanced Search**: By keywords, inventors, assignees, CPC codes, date ranges
+- **Patent Metadata**: Number, title, abstract, claims, citations, legal status
+- **Classification Support**: CPC, IPC, and USPC classification systems
+- **Full-text Extraction**: Complete patent content including claims and descriptions
+- **Patent Family Tracking**: Related patents and citation networks
+- **Rate Limiting**: Complies with USPTO API guidelines
+
+### Quick Start
+
+```bash
+# Search patents by keyword
+python patent_scraper.py --keywords "machine learning" --max-results 50
+
+# Search by inventor
+python patent_scraper.py --inventors "John Smith" --max-results 100
+
+# Search by assignee/company
+python patent_scraper.py --assignees "Google" --include-full-text --max-results 50
+
+# Search by CPC classification
+python patent_scraper.py --cpc-codes "G06F" --recent-days 30
+
+# Get specific patent
+python patent_scraper.py --patent-number US10123456B2 --include-claims --include-citations
+
+# Batch retrieve patents
+python patent_scraper.py --patent-numbers US10123456 US10234567 --include-full-text
+```
+
+### Programming Interface
+
+```python
+from research_scrapers.patent_scraper import PatentScraper, PatentSearchOptions
+
+# Initialize scraper
+scraper = PatentScraper()
+
+# Create search options
+options = PatentSearchOptions(
+    keywords=["artificial intelligence"],
+    assignees=["Google"],
+    max_results=100,
+    include_full_text=True,
+    include_claims=True,
+    include_citations=True
+)
+
+# Search patents
+patents = scraper.scrape(options)
+
+# Process results
+for patent in patents:
+    print(f"Patent: {patent.patent_number}")
+    print(f"Title: {patent.title}")
+    print(f"Inventors: {', '.join(patent.inventors)}")
+    print(f"Assignees: {', '.join(patent.assignees)}")
+    if patent.claims:
+        print(f"Claims: {len(patent.claims)}")
+```
+
+See the [Patent Scraper Guide](docs/PATENT_SCRAPER_GUIDE.md) for complete documentation.
 
 ## 🐙 GitHub Scraper
 
@@ -206,26 +332,6 @@ with GitHubScraper() as scraper:
     # Scrape user
     user_data = scraper.scrape_user("torvalds")
     print(f"Followers: {user_data['followers']}")
-```
-
-### Examples
-
-#### Repository Scraping
-
-```python
-from research_scrapers import GitHubScraper
-
-scraper = GitHubScraper()
-
-# Get repository details
-repo = scraper.scrape_repository("microsoft", "vscode")
-
-print(f"Repository: {repo['full_name']}")
-print(f"Description: {repo['description']}")
-print(f"Stars: {repo['stargazers_count']}")
-print(f"Forks: {repo['forks_count']}")
-print(f"Language: {repo['language']}")
-print(f"License: {repo['license']['name'] if repo['license'] else 'None'}")
 ```
 
 ## 🔮 Linear Integration (Coming Soon)
@@ -260,6 +366,8 @@ scraper.sync_to_github("CrazyDubya/research-scrapers")
 ```
 research-scrapers/
 ├── arxiv_scraper.py           # ArXiv research paper scraper
+├── stackoverflow_scraper.py   # Stack Overflow Q&A scraper
+├── patent_scraper.py          # Patent database scraper
 ├── github_repo_scraper.py     # GitHub repository scraper
 ├── github_issue_scraper.py    # GitHub issues scraper
 ├── github_user_scraper.py     # GitHub user scraper
@@ -270,6 +378,8 @@ research-scrapers/
 │       ├── __init__.py
 │       ├── scraper.py          # Core scraping classes
 │       ├── github_scraper.py   # GitHub API scraper
+│       ├── stackoverflow_scraper.py  # Stack Overflow API scraper
+│       ├── patent_scraper.py   # Patent database scraper
 │       ├── linear/             # Linear integration (coming soon)
 │       ├── utils.py            # Utility functions
 │       └── config.py           # Configuration management
@@ -277,11 +387,15 @@ research-scrapers/
 │   ├── test_scraper.py
 │   ├── test_github_scraper.py  # GitHub scraper tests
 │   ├── test_arxiv_scraper.py   # ArXiv scraper tests
+│   ├── test_stackoverflow_scraper.py  # Stack Overflow scraper tests
+│   ├── test_patent_scraper.py  # Patent scraper tests
 │   ├── test_utils.py
 │   └── test_config.py
 ├── docs/
 │   ├── getting-started.md
 │   ├── ARXIV_SCRAPER_GUIDE.md  # Comprehensive ArXiv documentation
+│   ├── STACKOVERFLOW_SCRAPER.md  # Stack Overflow scraper guide
+│   ├── PATENT_SCRAPER_GUIDE.md   # Patent scraper guide
 │   ├── api-reference.md
 │   ├── configuration.md
 │   ├── INTEGRATION_GUIDE.md    # Platform integration guide
@@ -311,6 +425,7 @@ export SCRAPER_REQUEST_TIMEOUT=60
 export SCRAPER_RATE_LIMIT=2.0
 export SCRAPER_LOG_LEVEL=DEBUG
 export GITHUB_API_KEY=your_token_here
+export STACKOVERFLOW_API_KEY=your_so_token
 export LINEAR_API_KEY=your_linear_token  # Coming soon
 ```
 
@@ -323,6 +438,7 @@ export LINEAR_API_KEY=your_linear_token  # Coming soon
   "log_level": "INFO",
   "api_keys": {
     "github": "your_github_token",
+    "stackoverflow": "your_so_token",
     "linear": "your_linear_token"
   }
 }
@@ -337,76 +453,110 @@ config = Config()
 config.REQUEST_TIMEOUT = 60
 config.RATE_LIMIT = 2.0
 config.set_api_key('github', 'your_token')
+config.set_api_key('stackoverflow', 'your_so_token')
 config.set_api_key('linear', 'your_linear_token')  # Coming soon
 ```
 
 ## 📚 Examples
 
-### ArXiv Research Workflow
+### Research Workflow Examples
 
 ```python
 # Daily research update workflow
 from arxiv_scraper import ArxivScraper, ArxivSearchOptions
+from research_scrapers.stackoverflow_scraper import StackOverflowScraper, ScrapingOptions
 
 def daily_research_update():
-    scraper = ArxivScraper()
-    
-    # Get recent papers in your field
-    papers = scraper.search_recent_papers(
+    # Get recent ArXiv papers
+    arxiv_scraper = ArxivScraper()
+    papers = arxiv_scraper.search_recent_papers(
         days=1,
         categories=["cs.AI", "cs.LG", "cs.CV"],
         max_results=50
     )
     
-    # Filter by keywords
-    relevant_papers = [
-        paper for paper in papers
-        if any(keyword in paper.title.lower() or keyword in paper.abstract.lower()
-               for keyword in ["neural", "deep learning", "transformer"])
-    ]
-    
-    return relevant_papers
-```
-
-### Literature Review
-
-```python
-# Comprehensive literature review
-def literature_review(topic, start_year=2020):
-    scraper = ArxivScraper()
-    
-    options = ArxivSearchOptions(
-        query=topic,
-        start_date=f"{start_year}-01-01",
-        max_results=200,
-        include_pdf=True,
-        include_full_text=True,
-        extract_references=True
+    # Get trending Stack Overflow questions
+    so_scraper = StackOverflowScraper()
+    so_options = ScrapingOptions(
+        tags=["machine-learning", "deep-learning"],
+        sort="activity",
+        max_results=20
     )
+    questions = so_scraper.search_questions(so_options)
     
-    papers = scraper.search_papers(options)
-    return papers
+    return papers, questions
 ```
 
-### Basic Web Scraping
+### Patent Research Workflow
 
 ```python
-# Run the basic scraping example
-python scripts/example_basic_scraping.py
+# Comprehensive patent landscape analysis
+from research_scrapers.patent_scraper import PatentScraper, PatentSearchOptions
+
+def patent_landscape_analysis(technology_area, company_list):
+    scraper = PatentScraper()
+    
+    all_patents = []
+    
+    # Search by technology keywords
+    tech_options = PatentSearchOptions(
+        keywords=[technology_area],
+        max_results=500,
+        include_citations=True,
+        start_date="2020-01-01"
+    )
+    tech_patents = scraper.scrape(tech_options)
+    all_patents.extend(tech_patents)
+    
+    # Search by key companies
+    for company in company_list:
+        company_options = PatentSearchOptions(
+            assignees=[company],
+            keywords=[technology_area],
+            max_results=200,
+            include_full_text=True
+        )
+        company_patents = scraper.scrape(company_options)
+        all_patents.extend(company_patents)
+    
+    return all_patents
 ```
 
-### Batch Processing
+### Cross-Platform Research
 
 ```python
-# Run batch scraping with multiple URLs
-python scripts/example_batch_scraping.py
-```
-
-### Selenium Scraping
-
-```python
-# Scrape JavaScript-heavy sites
-python scripts/example_selenium_scraping.py
+# Multi-platform research aggregation
+def comprehensive_research(topic):
+    results = {}
+    
+    # ArXiv papers
+    arxiv_scraper = ArxivScraper()
+    arxiv_options = ArxivSearchOptions(
+        query=topic,
+        max_results=100,
+        include_full_text=True
+    )
+    results['papers'] = arxiv_scraper.search_papers(arxiv_options)
+    
+    # Stack Overflow discussions
+    so_scraper = StackOverflowScraper()
+    so_options = ScrapingOptions(
+        query=topic,
+        max_results=50,
+        include_answers=True
+    )
+    results['discussions'] = so_scraper.search_questions(so_options)
+    
+    # Patents
+    patent_scraper = PatentScraper()
+    patent_options = PatentSearchOptions(
+        keywords=[topic],
+        max_results=100,
+        include_claims=True
+    )
+    results['patents'] = patent_scraper.scrape(patent_options)
+    
+    return results
 ```
 
 ## 🛠️ Development Setup
@@ -435,8 +585,10 @@ pytest tests/ -v
 # Run with coverage
 pytest tests/ --cov=research_scrapers --cov-report=html
 
-# Run specific test file
+# Run specific test files
 pytest tests/test_arxiv_scraper.py -v
+pytest tests/test_stackoverflow_scraper.py -v
+pytest tests/test_patent_scraper.py -v
 ```
 
 ### Code Quality
@@ -458,6 +610,8 @@ Comprehensive documentation is available in the `docs/` directory:
 
 - [Getting Started](docs/getting-started.md) - Installation and basic usage
 - [ArXiv Scraper Guide](docs/ARXIV_SCRAPER_GUIDE.md) - Complete ArXiv scraper documentation
+- [Stack Overflow Scraper Guide](docs/STACKOVERFLOW_SCRAPER.md) - Stack Overflow API integration
+- [Patent Scraper Guide](docs/PATENT_SCRAPER_GUIDE.md) - Patent database scraping
 - [Configuration](docs/configuration.md) - Detailed configuration options
 - [Integration Guide](docs/INTEGRATION_GUIDE.md) - Platform integration patterns
 - [API Architecture](docs/API_ARCHITECTURE.md) - System design and architecture
@@ -478,6 +632,8 @@ Comprehensive documentation is available in the `docs/` directory:
 - **`SeleniumScraper`**: Browser-based scraper for JavaScript sites
 - **`GitHubScraper`**: Production-ready GitHub API integration
 - **`ArxivScraper`**: Comprehensive ArXiv research paper scraper
+- **`StackOverflowScraper`**: Stack Overflow API scraper with Q&A extraction
+- **`PatentScraper`**: Multi-source patent database scraper
 - **`LinearScraper`**: *Coming Soon* - Linear API integration (RUB-50)
 - **`Config`**: Configuration management with multiple sources
 
@@ -501,6 +657,8 @@ Comprehensive documentation is available in the `docs/` directory:
 - ✅ **Configuration**: Environment variables, files, and programmatic
 - ✅ **Testing**: Full test suite with mocking
 - ✅ **ArXiv Integration**: Complete research paper scraping
+- ✅ **Stack Overflow Integration**: Q&A and user data extraction
+- ✅ **Patent Integration**: USPTO and Google Patents scraping
 - 🚧 **Linear Integration**: In development (RUB-50)
 
 ## 🔒 Security & Ethics
@@ -525,9 +683,11 @@ Comprehensive documentation is available in the `docs/` directory:
 
 ### Common Issues
 
-1. **Selenium WebDriver not found**
+1. **API Key Issues**
    ```bash
-   pip install webdriver-manager
+   # Set environment variables
+   export STACKOVERFLOW_API_KEY=your_key_here
+   export GITHUB_TOKEN=your_token_here
    ```
 
 2. **PDF processing libraries missing**
@@ -540,14 +700,7 @@ Comprehensive documentation is available in the `docs/` directory:
    config.RATE_LIMIT = 0.5  # Slower rate
    ```
 
-4. **JavaScript not loading**
-   ```python
-   # Use Selenium with explicit waits
-   scraper = SeleniumScraper()
-   result = scraper.scrape(url, wait_for_element='.content')
-   ```
-
-5. **Memory issues with large datasets**
+4. **Memory issues with large datasets**
    ```python
    # Process in smaller batches
    batches = batch_process(urls, batch_size=10)
@@ -605,6 +758,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Built with [requests](https://requests.readthedocs.io/) and [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/)
 - Selenium integration for JavaScript support
 - ArXiv API for research paper access
+- Stack Overflow API for Q&A data
+- USPTO Patent API for patent data
 - PDF processing libraries: PyPDF2, pdfplumber, pdfminer
 - Inspired by the research community's need for reliable data collection tools
 
