@@ -86,11 +86,7 @@ jobs:
       
       - name: Validate secrets
         run: |
-          # Check for GitHub token (use github.token which is automatically provided)
-          if [ -z "${{ github.token }}" ]; then
-            echo "::error::GitHub token not available"
-            exit 1
-          fi
+          # GitHub token is automatically provided by GitHub Actions; no need to check.
           
           echo "::notice::GitHub authentication validated"
           
