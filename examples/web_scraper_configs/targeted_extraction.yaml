@@ -1,0 +1,38 @@
+# Configuration for targeted content extraction using CSS selectors
+
+user_agent: "ResearchBot/1.0"
+timeout: 30
+verify_ssl: true
+respect_robots_txt: true
+
+rate_limit:
+  requests_per_second: 1.0
+  burst_size: 3
+  max_retries: 3
+
+auth:
+  auth_type: "none"
+
+extraction:
+  method: "targeted"
+  # Define specific CSS selectors for content extraction
+  selectors:
+    title: "h1.article-title, .post-title"
+    author: ".author-name, [itemprop='author']"
+    date: "time.published, .post-date"
+    content: "article .content, .post-body, .entry-content"
+    tags: ".tags a, .post-tags a"
+    category: ".category, .post-category"
+  clean_whitespace: true
+  preserve_formatting: true
+  extract_metadata: true
+
+pagination:
+  enabled: false
+
+browser:
+  enabled: false
+
+output_format: "json"
+output_dir: "./output/targeted"
+log_level: "INFO"

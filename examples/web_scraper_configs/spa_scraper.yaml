@@ -1,0 +1,47 @@
+# Configuration for scraping Single Page Applications (SPAs)
+
+user_agent: "ResearchBot/1.0"
+timeout: 60
+verify_ssl: true
+respect_robots_txt: true
+
+rate_limit:
+  requests_per_second: 0.5
+  burst_size: 2
+  backoff_factor: 2.0
+  max_retries: 3
+
+auth:
+  auth_type: "none"
+
+extraction:
+  method: "auto"
+  remove_elements:
+    - "script"
+    - "style"
+    - "nav"
+    - "header"
+    - "footer"
+  clean_whitespace: true
+  preserve_formatting: true
+  extract_metadata: true
+  extract_links: true
+
+pagination:
+  enabled: false
+
+browser:
+  enabled: true
+  headless: true
+  browser_type: "chromium"
+  viewport:
+    width: 1920
+    height: 1080
+  timeout: 60000
+  wait_for_load_state: "networkidle"
+  javascript_enabled: true
+  stealth_mode: true
+
+output_format: "json"
+output_dir: "./output/spa"
+log_level: "INFO"
