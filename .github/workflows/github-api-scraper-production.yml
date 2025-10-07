@@ -333,7 +333,7 @@ jobs:
       fail-fast: false
       max-parallel: 5
       matrix:
-        target: ${{ fromJson(needs.setup.outputs.matrix_targets) }}
+        target: ${{ fromJSON(needs.setup.outputs.matrix_targets) }}
     
     steps:
       - name: Checkout repository
@@ -571,7 +571,7 @@ except:
         run: |
           METADATA_FILE="output/metadata_${{ matrix.target }}_${{ needs.setup.outputs.run_id }}.json"
           
-          cat > "${METADATA_FILE}" << EOF
+          cat > "${METADATA_FILE}" << 'METADATA_EOF'
 {
   "scraping_info": {
     "run_id": "${{ needs.setup.outputs.run_id }}",
@@ -600,7 +600,7 @@ except:
     "debug_mode": ${{ needs.setup.outputs.debug_mode }}
   }
 }
-EOF
+METADATA_EOF
           
           echo "::notice::Metadata generated: ${METADATA_FILE}"
       
@@ -685,7 +685,7 @@ EOF
           # Aggregate all JSON outputs
           AGGREGATED_FILE="aggregated/all_results_${{ needs.setup.outputs.run_id }}.json"
           
-          python3 << EOF
+          python3 << 'AGGREGATE_EOF'
 import json
 import os
 from pathlib import Path
@@ -732,7 +732,7 @@ with open("${AGGREGATED_FILE}", 'w', encoding='utf-8') as f:
 
 print(f"Aggregated {results['aggregation_info']['successful_scrapes']} successful results")
 print(f"Failed to process {results['aggregation_info']['failed_scrapes']} files")
-EOF
+AGGREGATE_EOF
           
           echo "aggregated_file=${AGGREGATED_FILE}" >> $GITHUB_OUTPUT
           echo "::notice::Results aggregated into ${AGGREGATED_FILE}"
@@ -742,7 +742,7 @@ EOF
         run: |
           REPORT_FILE="aggregated/summary_report_${{ needs.setup.outputs.run_id }}.md"
           
-          cat > "${REPORT_FILE}" << 'EOF'
+          cat > "${REPORT_FILE}" << 'REPORT_EOF'
 # GitHub API Scraper Summary Report
 
 **Run ID**: `${{ needs.setup.outputs.run_id }}`  
@@ -764,7 +764,7 @@ EOF
 
 ## Results
 
-EOF
+REPORT_EOF
           
           # Add job results to report
           echo "| Target | Status | Output Files |" >> "${REPORT_FILE}"
