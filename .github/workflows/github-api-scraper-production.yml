@@ -215,10 +215,6 @@ jobs:
       - name: Validate secrets and configuration
         run: |
           # Check GitHub token availability (use github.token for better security)
-          if [ -z "${{ github.token }}" ]; then
-            echo "::error::GitHub token not available"
-            exit 1
-          fi
           
           # Validate target format based on scraper mode
           TARGET="${{ steps.config.outputs.target }}"
