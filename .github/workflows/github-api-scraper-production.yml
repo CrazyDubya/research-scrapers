@@ -859,7 +859,7 @@ EOF
             <p><em>Generated at $(date -u +"%Y-%m-%d %H:%M:%S UTC")</em></p>
       
       - name: Send Slack notification
-        if: (needs.setup.outputs.slack_webhook != '' || secrets.SLACK_WEBHOOK_URL != '') && (needs.setup.outputs.slack_webhook != '' || secrets.SLACK_WEBHOOK_URL != '')
+        if: needs.setup.outputs.slack_webhook != '' || secrets.SLACK_WEBHOOK_URL != ''
         uses: 8398a7/action-slack@v3
         with:
           status: custom
