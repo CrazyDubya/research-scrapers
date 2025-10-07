@@ -29,8 +29,9 @@ def post_status(api_key: str, status: str, run_id: str) -> bool:
         True if successful
     """
     if not api_key:
-        print("Warning: No API key provided")
-        return False
+        print("ℹ️  LINEAR_API_KEY not configured - skipping Linear status update")
+        print(f"   Status: {status.upper()}, Run ID: {run_id}")
+        return True  # Return True to indicate graceful skip
     
     # Create status emoji and message
     status_emoji = {
@@ -77,10 +78,14 @@ def main():
     
     try:
         success = post_status(api_key, args.status, args.run_id)
-        return 0 if success else 1
+        # Always return 0 (success) to avoid failing workflows
+        # when LINEAR_API_KEY is not configured
+        return 0
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        return 1
+        print(f"Warning: {e}", file=sys.stderr)
+        # Return 0 even on error to avoid failing the workflow
+        # Linear integration is optional
+        return 0
 
 
 if __name__ == "__main__":
