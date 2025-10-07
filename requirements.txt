@@ -49,3 +49,7 @@ pre-commit>=3.4.0
 # pygithub>=1.59.0  # GitHub API
 # tweepy>=4.14.0    # Twitter API
 # praw>=7.7.0       # Reddit API
+
+# Note: Linear integration is included in the package and uses Python standard library
+# For Linear integration, ensure LINEAR_API_KEY environment variable is set
+# See requirements-linear.txt for optional enhanced Linear SDK dependencies
