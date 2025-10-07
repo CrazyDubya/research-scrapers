@@ -38,17 +38,25 @@ class RateLimiter:
         self.min_interval = 1.0 / calls_per_second
         self.last_called = 0.0
     
+    def wait(self):
+        """Wait if necessary to respect rate limit."""
+        now = time.time()
+        time_since_last = now - self.last_called
+        
+        if time_since_last < self.min_interval:
+            sleep_time = self.min_interval - time_since_last
+            time.sleep(sleep_time)
+        
+        self.last_called = time.time()
+    
+    def wait_if_needed(self):
+        """Alias for wait() method for backward compatibility."""
+        self.wait()
+    
     def __call__(self, func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            now = time.time()
-            time_since_last = now - self.last_called
-            
-            if time_since_last < self.min_interval:
-                sleep_time = self.min_interval - time_since_last
-                time.sleep(sleep_time)
-            
-            self.last_called = time.time()
+            self.wait()
             return func(*args, **kwargs)
         return wrapper
 
@@ -60,21 +68,48 @@ def rate_limit(calls_per_second: float = 1.0):
 
 
 def exponential_backoff(max_retries: int = 3, base_delay: float = 1.0):
-    """Decorator for exponential backoff retry logic."""
+    """Decorator for exponential backoff retry logic.
+    
+    Supports both synchronous and asynchronous functions.
+    
+    Args:
+        max_retries: Maximum number of retry attempts
+        base_delay: Initial delay between retries in seconds
+    """
     def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            for attempt in range(max_retries + 1):
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    if attempt == max_retries:
-                        raise e
-                    
-                    delay = base_delay * (2 ** attempt)
-                    logging.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
-                    time.sleep(delay)
-        return wrapper
+        # Check if function is async
+        if hasattr(func, '__code__') and func.__code__.co_flags & 0x100:
+            # Async function
+            import asyncio
+            
+            @functools.wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                for attempt in range(max_retries + 1):
+                    try:
+                        return await func(*args, **kwargs)
+                    except Exception as e:
+                        if attempt == max_retries:
+                            raise e
+                        
+                        delay = base_delay * (2 ** attempt)
+                        logging.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
+                        await asyncio.sleep(delay)
+            return async_wrapper
+        else:
+            # Sync function
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                for attempt in range(max_retries + 1):
+                    try:
+                        return func(*args, **kwargs)
+                    except Exception as e:
+                        if attempt == max_retries:
+                            raise e
+                        
+                        delay = base_delay * (2 ** attempt)
+                        logging.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
+                        time.sleep(delay)
+            return wrapper
     return decorator
 
 
@@ -437,6 +472,108 @@ class DataValidator:
 # HTTP SESSION MANAGEMENT
 # =============================================================================
 
+class GitHubAPIClient:
+    """GitHub API client with rate limiting and error handling."""
+    
+    def __init__(self, token: Optional[str] = None):
+        """
+        Initialize GitHub API client.
+        
+        Args:
+            token: GitHub personal access token (optional)
+        """
+        self.token = token
+        self.base_url = "https://api.github.com"
+        self.session = self._create_session()
+        
+    def _create_session(self) -> requests.Session:
+        """Create configured session with security headers."""
+        session = requests.Session()
+        
+        headers = {
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'research-scrapers/1.0'
+        }
+        
+        if self.token:
+            headers['Authorization'] = f'token {self.token}'
+        
+        session.headers.update(headers)
+        
+        # Configure retry strategy
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=0.3,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["HEAD", "GET", "OPTIONS", "POST"]
+        )
+        
+        # Mount adapter with retry strategy
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        
+        return session
+    
+    def get(self, url: str, params: Optional[Dict[str, Any]] = None, 
+            headers: Optional[Dict[str, str]] = None) -> requests.Response:
+        """
+        Make GET request.
+        
+        Args:
+            url: URL to request
+            params: Query parameters
+            headers: Additional headers
+            
+        Returns:
+            Response object
+        """
+        request_headers = {}
+        if headers:
+            request_headers.update(headers)
+            
+        response = self.session.get(url, params=params, headers=request_headers)
+        response.raise_for_status()
+        return response
+    
+    def post(self, url: str, json: Optional[Dict[str, Any]] = None,
+             data: Optional[Any] = None,
+             headers: Optional[Dict[str, str]] = None) -> requests.Response:
+        """
+        Make POST request.
+        
+        Args:
+            url: URL to request
+            json: JSON payload
+            data: Form data payload
+            headers: Additional headers
+            
+        Returns:
+            Response object
+        """
+        request_headers = {}
+        if headers:
+            request_headers.update(headers)
+            
+        response = self.session.post(url, json=json, data=data, headers=request_headers)
+        response.raise_for_status()
+        return response
+    
+    def close(self):
+        """Close the session."""
+        if hasattr(self, 'session'):
+            self.session.close()
+    
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.close()
+        return False
+
+
 def create_session(
     max_retries: int = 3,
     backoff_factor: float = 0.3,
@@ -547,15 +684,29 @@ def merge_dicts(*dicts: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def safe_get(data: Dict[str, Any], path: str, default: Any = None) -> Any:
-    """Safely get nested dictionary value using dot notation."""
+    """Safely get nested dictionary value using dot notation.
+    
+    Args:
+        data: Dictionary to extract value from
+        path: Dot-notation path to value (e.g., 'user.name')
+        default: Default value if path not found
+        
+    Returns:
+        Value at path or default if not found
+    """
+    if data is None:
+        return default
+        
     keys = path.split('.')
     value = data
     
     try:
         for key in keys:
+            if value is None:
+                return default
             value = value[key]
         return value
-    except (KeyError, TypeError):
+    except (KeyError, TypeError, AttributeError):
         return default
 
 

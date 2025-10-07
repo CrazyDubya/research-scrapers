@@ -117,12 +117,14 @@ class GitHubRepoScraper:
         
         logger.info(f"Initialized scraper with {'authenticated' if self.token else 'unauthenticated'} access")
     
-    @rate_limit(calls_per_second=1.0)
     @exponential_backoff(max_retries=3)
     @handle_api_errors
     def _make_request(self, url: str, params: Optional[Dict] = None, 
                      headers: Optional[Dict] = None) -> requests.Response:
         """Make a rate-limited API request."""
+        # Apply rate limiting
+        self.rate_limiter.wait()
+        
         request_headers = self.session.headers.copy()
         if headers:
             request_headers.update(headers)

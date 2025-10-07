@@ -213,7 +213,7 @@ class ArxivScraper:
     @handle_api_errors
     def _make_request(self, url: str, params: Optional[Dict] = None) -> requests.Response:
         """Make a rate-limited request to ArXiv API."""
-        self.rate_limiter._RateLimiter__call__(lambda: None)()  # Apply rate limiting
+        self.rate_limiter.wait()  # Apply rate limiting
         
         logger.debug(f"Making request to: {url}")
         response = self.session.get(url, params=params)
@@ -495,7 +495,7 @@ class ArxivScraper:
         logger.debug(f"Downloading PDF: {pdf_url}")
         
         # Apply rate limiting
-        self.rate_limiter._RateLimiter__call__(lambda: None)()
+        self.rate_limiter.wait()
         
         response = self.session.get(pdf_url)
         response.raise_for_status()
