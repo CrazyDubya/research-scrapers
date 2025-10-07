@@ -214,9 +214,9 @@ jobs:
       
       - name: Validate secrets and configuration
         run: |
-          # Check required secrets
-          if [ -z "${{ secrets.GITHUB_TOKEN }}" ]; then
-            echo "::error::GITHUB_TOKEN secret not configured"
+          # Check GitHub token availability (use github.token for better security)
+          if [ -z "${{ github.token }}" ]; then
+            echo "::error::GitHub token not available"
             exit 1
           fi
           
@@ -239,13 +239,28 @@ jobs:
               ;;
           esac
           
-          # Check optional notification secrets
-          if [ -n "${{ steps.config.outputs.notification_email }}" ] && [ -z "${{ secrets.SMTP_PASSWORD }}" ]; then
-            echo "::warning::Email notifications requested but SMTP_PASSWORD not configured"
+          # Check optional notification secrets with graceful handling
+          if [ -n "${{ steps.config.outputs.notification_email }}" ]; then
+            if [ -z "${{ secrets.SMTP_PASSWORD }}" ]; then
+              echo "::warning::Email notifications requested but SMTP_PASSWORD not configured - will skip email notifications"
+            else
+              echo "::notice::Email notifications configured"
+            fi
           fi
           
-          if [ -n "${{ steps.config.outputs.slack_webhook }}" ] && [ -z "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
-            echo "::warning::Slack notifications requested but SLACK_WEBHOOK_URL not configured"
+          if [ -n "${{ steps.config.outputs.slack_webhook }}" ]; then
+            if [ -z "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+              echo "::warning::Slack notifications requested but SLACK_WEBHOOK_URL not configured - will skip Slack notifications"
+            else
+              echo "::notice::Slack notifications configured"
+            fi
+          fi
+          
+          # Check Linear API key with graceful handling
+          if [ -z "${{ secrets.LINEAR_API_KEY }}" ]; then
+            echo "::warning::LINEAR_API_KEY not configured - Linear integration will be disabled"
+          else
+            echo "::notice::Linear integration available"
           fi
           
           echo "::notice::Configuration validation completed"
@@ -253,7 +268,7 @@ jobs:
       - name: Check GitHub API rate limits
         id: rate_limit
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           # Check current rate limit status
           RATE_LIMIT_RESPONSE=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" \
@@ -344,7 +359,7 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
           
-          # Install optional dependencies
+          # Install optional dependencies with graceful failure
           if [ -f requirements-linear.txt ]; then
             pip install -r requirements-linear.txt || echo "::warning::Optional Linear dependencies failed to install"
           fi
@@ -378,7 +393,7 @@ jobs:
       - name: Execute GitHub API Scraper
         id: scraper
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
           TARGET: ${{ matrix.target }}
           SCRAPER_MODE: ${{ needs.setup.outputs.scraper_mode }}
           OUTPUT_FORMAT: ${{ needs.setup.outputs.output_format }}
@@ -809,7 +824,7 @@ EOF
           fi
       
       - name: Send email notification
-        if: needs.setup.outputs.notification_email != ''
+        if: needs.setup.outputs.notification_email != '' && secrets.SMTP_PASSWORD != ''
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -844,7 +859,7 @@ EOF
             <p><em>Generated at $(date -u +"%Y-%m-%d %H:%M:%S UTC")</em></p>
       
       - name: Send Slack notification
-        if: needs.setup.outputs.slack_webhook != '' || secrets.SLACK_WEBHOOK_URL != ''
+        if: (needs.setup.outputs.slack_webhook != '' || secrets.SLACK_WEBHOOK_URL != '') && (needs.setup.outputs.slack_webhook != '' || secrets.SLACK_WEBHOOK_URL != '')
         uses: 8398a7/action-slack@v3
         with:
           status: custom
@@ -904,7 +919,7 @@ EOF
         if: steps.status.outputs.overall_status == 'failure'
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ github.token }}
           script: |
             const title = `🚨 GitHub API Scraper Failed - Run ${{ needs.setup.outputs.run_id }}`;
             const body = `
