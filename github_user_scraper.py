@@ -58,6 +58,24 @@ class GitHubUserScraper:
         
         self.session.headers.update(self.headers)
     
+    def close(self):
+        """Close the session and cleanup resources."""
+        if hasattr(self, 'session'):
+            self.session.close()
+    
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.close()
+        return False
+    
+    def __del__(self):
+        """Destructor to ensure cleanup."""
+        self.close()
+    
     def _make_request(self, url: str, params: Optional[Dict] = None) -> Optional[Dict]:
         """Make authenticated request to GitHub API with rate limiting"""
         try:

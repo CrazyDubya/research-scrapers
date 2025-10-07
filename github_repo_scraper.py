@@ -117,12 +117,32 @@ class GitHubRepoScraper:
         
         logger.info(f"Initialized scraper with {'authenticated' if self.token else 'unauthenticated'} access")
     
-    @rate_limit(calls_per_second=1.0)
+    def close(self):
+        """Close the session and cleanup resources."""
+        if hasattr(self, 'session'):
+            self.session.close()
+    
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.close()
+        return False
+    
+    def __del__(self):
+        """Destructor to ensure cleanup."""
+        self.close()
+    
     @exponential_backoff(max_retries=3)
     @handle_api_errors
     def _make_request(self, url: str, params: Optional[Dict] = None, 
                      headers: Optional[Dict] = None) -> requests.Response:
         """Make a rate-limited API request."""
+        # Apply rate limiting
+        self.rate_limiter.wait()
+        
         request_headers = self.session.headers.copy()
         if headers:
             request_headers.update(headers)
