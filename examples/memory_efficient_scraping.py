@@ -19,9 +19,9 @@ import time
 from pathlib import Path
 
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+sys.path.insert(0, str(Path(__file__).parent.parent / 'src' / 'research_scrapers'))
 
-from research_scrapers.memory_manager import (
+from memory_manager import (
     MemoryManager,
     MemoryMonitor,
     memory_efficient_context,

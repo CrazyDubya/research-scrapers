@@ -19,9 +19,9 @@ import time
 from pathlib import Path
 
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+sys.path.insert(0, str(Path(__file__).parent.parent / 'src' / 'research_scrapers'))
 
-from research_scrapers.batch_processor import BatchProcessor, process_batch_simple
+from batch_processor import BatchProcessor, process_batch_simple
 
 
 def simulate_api_call(url: str) -> dict:
