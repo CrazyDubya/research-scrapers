@@ -49,6 +49,7 @@ jobs:
       update_linear: ${{ steps.config.outputs.update_linear }}
       run_id: ${{ steps.config.outputs.run_id }}
       has_linear_key: ${{ steps.check_secrets.outputs.has_linear_key }}
+      matrix_scrapers: ${{ steps.matrix_config.outputs.scrapers }}
     
     steps:
       - name: Checkout repository
@@ -72,6 +73,21 @@ jobs:
           
           echo "::notice::Configured scraper run: ${SCRAPER_TYPE} for ${TARGET:-default}"
       
+      - name: Configure matrix strategy
+        id: matrix_config
+        run: |
+          SCRAPER_TYPE="${{ steps.config.outputs.scraper_type }}"
+          
+          # Build matrix array based on scraper type
+          if [ "${SCRAPER_TYPE}" = "all" ]; then
+            MATRIX='["github_repo","github_issue","github_user"]'
+          else
+            MATRIX="[\"${SCRAPER_TYPE}\"]"
+          fi
+          
+          echo "scrapers=${MATRIX}" >> $GITHUB_OUTPUT
+          echo "::notice::Matrix strategy: ${MATRIX}"
+      
       - name: Check for secrets availability
         id: check_secrets
         run: |
@@ -91,7 +107,7 @@ jobs:
           echo "::notice::GitHub authentication validated"
           
           # Inform about Linear integration status
-          if [ "${{ steps.config.outputs.update_linear }}" == "true" ] && [ "${{ steps.check_secrets.outputs.has_linear_key }}" != "true" ]; then
+          if [ "${{ steps.config.outputs.update_linear }}" = "true" ] && [ "${{ steps.check_secrets.outputs.has_linear_key }}" != "true" ]; then
             echo "::warning::Linear updates requested but LINEAR_API_KEY not configured - Linear updates will be skipped"
           fi
           
@@ -104,12 +120,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scraper: 
-          - ${{ needs.setup.outputs.scraper_type == 'all' && 'github_repo' || needs.setup.outputs.scraper_type }}
-          - ${{ needs.setup.outputs.scraper_type == 'all' && 'github_issue' || '' }}
-          - ${{ needs.setup.outputs.scraper_type == 'all' && 'github_user' || '' }}
-        exclude:
-          - scraper: ''
+        scraper: ${{ fromJson(needs.setup.outputs.matrix_scrapers) }}
     
     steps:
       - name: Checkout repository
@@ -223,7 +234,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [setup, run-scrapers]
     # Only run if Linear is enabled, has API key, and scraping didn't fail
-    if: needs.setup.outputs.update_linear == 'true' && needs.setup.outputs.has_linear_key == 'true' && !cancelled()
+    if: |
+      needs.setup.outputs.update_linear == 'true' && 
+      needs.setup.outputs.has_linear_key == 'true' && 
+      !cancelled()
     
     steps:
       - name: Checkout repository
@@ -297,10 +311,10 @@ jobs:
           STATUS="${{ needs.run-scrapers.result }}"
           LINEAR_STATUS="${{ needs.update-linear.result }}"
           
-          if [ "${STATUS}" == "success" ] && ( [ "${LINEAR_STATUS}" == "success" ] || [ "${LINEAR_STATUS}" == "skipped" ] ); then
+          if [ "${STATUS}" = "success" ] && ( [ "${LINEAR_STATUS}" = "success" ] || [ "${LINEAR_STATUS}" = "skipped" ] ); then
             echo "NOTIFICATION_TITLE=✅ Research Scraper Completed Successfully" >> $GITHUB_ENV
             echo "NOTIFICATION_COLOR=success" >> $GITHUB_ENV
-          elif [ "${STATUS}" == "success" ]; then
+          elif [ "${STATUS}" = "success" ]; then
             echo "NOTIFICATION_TITLE=⚠️ Research Scraper Completed (Linear Update Issues)" >> $GITHUB_ENV
             echo "NOTIFICATION_COLOR=warning" >> $GITHUB_ENV
           else
