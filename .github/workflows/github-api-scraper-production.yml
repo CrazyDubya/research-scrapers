@@ -685,7 +685,7 @@ EOF
           # Aggregate all JSON outputs
           AGGREGATED_FILE="aggregated/all_results_${{ needs.setup.outputs.run_id }}.json"
           
-          python3 << 'EOF'
+          python3 << EOF
 import json
 import os
 from pathlib import Path
