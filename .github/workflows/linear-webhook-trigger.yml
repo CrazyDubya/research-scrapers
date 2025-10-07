@@ -102,7 +102,7 @@ jobs:
           TASK_ID: ${{ steps.parse.outputs.task_id }}
         run: |
           # Create a simple status update script inline with proper error handling
-          python3 << 'EOF'
+          python3 <<EOF
 import os
 import json
 import urllib.request
@@ -121,9 +121,9 @@ if not task_id:
     sys.exit(0)
 
 query = """
-mutation UpdateIssue($id: String!, $comment: String!) {
+mutation UpdateIssue(\$id: String!, \$comment: String!) {
   issueUpdate(
-    id: $id,
+    id: \$id,
     input: {
       stateId: "in_progress"
     }
@@ -139,8 +139,8 @@ mutation UpdateIssue($id: String!, $comment: String!) {
   }
   commentCreate(
     input: {
-      issueId: $id,
-      body: $comment
+      issueId: \$id,
+      body: \$comment
     }
   ) {
     success
@@ -151,7 +151,7 @@ mutation UpdateIssue($id: String!, $comment: String!) {
 workflow_url = f"{os.environ.get('GITHUB_SERVER_URL', '')}/{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}"
 variables = {
     "id": task_id,
-    "comment": f"🤖 Research scraper workflow triggered from GitHub Actions.\nWorkflow: {workflow_url}"
+    "comment": f"🤖 Research scraper workflow triggered from GitHub Actions.\\nWorkflow: {workflow_url}"
 }
 
 headers = {
