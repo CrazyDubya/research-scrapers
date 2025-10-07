@@ -331,7 +331,7 @@ jobs:
     
     strategy:
       fail-fast: false
-      max-parallel: ${{ needs.setup.outputs.parallel_execution == 'true' && 5 || 1 }}
+      max-parallel: 5
       matrix:
         target: ${{ fromJson(needs.setup.outputs.matrix_targets) }}
     
@@ -727,7 +727,7 @@ if artifacts_dir.exists():
         results["aggregation_info"]["total_files"] += 1
 
 # Save aggregated results
-with open("$AGGREGATED_FILE", 'w', encoding='utf-8') as f:
+with open("${AGGREGATED_FILE}", 'w', encoding='utf-8') as f:
     json.dump(results, f, indent=2, ensure_ascii=False)
 
 print(f"Aggregated {results['aggregation_info']['successful_scrapes']} successful results")
