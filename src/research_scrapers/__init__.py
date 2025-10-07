@@ -21,7 +21,14 @@ from .utils import (
 )
 from .config import Config
 
+# New infrastructure classes
+from .batch_processor import BatchProcessor, BatchResult, BatchStats, process_batch_simple
+from .memory_manager import MemoryManager, MemoryMonitor, MemoryStats, memory_efficient_context
+from .structured_logging import StructuredLogger, create_logger, log_execution_time
+from .circuit_breaker import CircuitBreaker, CircuitState, with_circuit_breaker, retry_with_backoff
+
 __all__ = [
+    # Core scrapers
     "BaseScraper",
     "WebScraper",
     "GitHubScraper",
@@ -30,10 +37,30 @@ __all__ = [
     "Patent",
     "PatentSearchOptions",
     "Config",
+    # Utils
     "setup_logging",
     "rate_limit",
     "retry_on_failure",
     "clean_text",
     "save_to_json",
-    "load_from_json"
+    "load_from_json",
+    # Batch processing
+    "BatchProcessor",
+    "BatchResult",
+    "BatchStats",
+    "process_batch_simple",
+    # Memory management
+    "MemoryManager",
+    "MemoryMonitor",
+    "MemoryStats",
+    "memory_efficient_context",
+    # Structured logging
+    "StructuredLogger",
+    "create_logger",
+    "log_execution_time",
+    # Circuit breaker
+    "CircuitBreaker",
+    "CircuitState",
+    "with_circuit_breaker",
+    "retry_with_backoff"
 ]
