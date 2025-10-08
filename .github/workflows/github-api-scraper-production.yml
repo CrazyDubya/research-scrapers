@@ -148,7 +148,7 @@ jobs:
         id: config
         run: |
           # Handle different trigger types
-          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+          if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
             # Extract from repository_dispatch payload
             SCRAPER_MODE="${{ github.event.client_payload.scraper_mode || 'repository' }}"
             TARGET="${{ github.event.client_payload.target || 'microsoft/vscode' }}"
@@ -162,7 +162,7 @@ jobs:
             SLACK_WEBHOOK="${{ github.event.client_payload.slack_webhook || '' }}"
             RETENTION_DAYS="${{ github.event.client_payload.artifact_retention_days || '30' }}"
             DEBUG_MODE="${{ github.event.client_payload.debug_mode || 'false' }}"
-          elif [ "${{ github.event_name }}" = "schedule" ]; then
+          elif [ "${{ github.event_name }}" == "schedule" ]; then
             # Default scheduled execution
             SCRAPER_MODE="comprehensive"
             TARGET="microsoft/vscode,facebook/react,google/tensorflow"
@@ -300,7 +300,7 @@ jobs:
           PARALLEL="${{ steps.config.outputs.parallel_execution }}"
           
           # Create matrix targets based on mode and parallel execution
-          if [ "${PARALLEL}" = "true" ] && [[ "${TARGET}" =~ , ]]; then
+          if [ "${PARALLEL}" == "true" ] && [[ "${TARGET}" =~ , ]]; then
             # Split comma-separated targets for parallel execution
             IFS=',' read -ra TARGETS <<< "${TARGET}"
             MATRIX_JSON="["
@@ -373,7 +373,7 @@ jobs:
           DEBUG_MODE: ${{ needs.setup.outputs.debug_mode }}
         run: |
           # Set log level based on debug mode
-          if [ "${DEBUG_MODE}" = "true" ]; then
+          if [ "${DEBUG_MODE}" == "true" ]; then
             echo "LOG_LEVEL=DEBUG" >> $GITHUB_ENV
             echo "VERBOSE_OUTPUT=true" >> $GITHUB_ENV
           else
@@ -434,19 +434,19 @@ jobs:
           esac
           
           # Add common arguments
-          if [ "${INCLUDE_COMMITS}" = "true" ]; then
+          if [ "${INCLUDE_COMMITS}" == "true" ]; then
             SCRAPER_ARGS="${SCRAPER_ARGS} --include-commits --max-commits ${MAX_ITEMS}"
           fi
           
-          if [ "${INCLUDE_ISSUES}" = "true" ]; then
+          if [ "${INCLUDE_ISSUES}" == "true" ]; then
             SCRAPER_ARGS="${SCRAPER_ARGS} --include-issues --max-issues ${MAX_ITEMS}"
           fi
           
-          if [ "${INCLUDE_PRS}" = "true" ]; then
+          if [ "${INCLUDE_PRS}" == "true" ]; then
             SCRAPER_ARGS="${SCRAPER_ARGS} --include-pull-requests --max-pull-requests ${MAX_ITEMS}"
           fi
           
-          if [ "${VERBOSE_OUTPUT}" = "true" ]; then
+          if [ "${VERBOSE_OUTPUT}" == "true" ]; then
             SCRAPER_ARGS="${SCRAPER_ARGS} --verbose"
           fi
           
@@ -466,7 +466,7 @@ jobs:
             echo "log_file=${LOG_FILE}" >> $GITHUB_OUTPUT
             
             # Generate CSV if requested
-            if [ "${OUTPUT_FORMAT}" = "csv" ] || [ "${OUTPUT_FORMAT}" = "both" ]; then
+            if [ "${OUTPUT_FORMAT}" == "csv" ] || [ "${OUTPUT_FORMAT}" == "both" ]; then
               echo "Converting to CSV format..."
               python -c "
 import json
@@ -626,11 +626,11 @@ EOF
           echo "## Scraper Results: ${TARGET}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          if [ "${STATUS}" = "success" ]; then
+          if [ "${STATUS}" == "success" ]; then
             echo "- **Status**: ✅ Success" >> $GITHUB_STEP_SUMMARY
-            echo "- **JSON Output**: \`${{ steps.scraper.outputs.json_output }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "- **JSON Output**: `${{ steps.scraper.outputs.json_output }}`" >> $GITHUB_STEP_SUMMARY
             if [ -n "${{ steps.scraper.outputs.csv_output }}" ]; then
-              echo "- **CSV Output**: \`${{ steps.scraper.outputs.csv_output }}\`" >> $GITHUB_STEP_SUMMARY
+              echo "- **CSV Output**: `${{ steps.scraper.outputs.csv_output }}`" >> $GITHUB_STEP_SUMMARY
             fi
             echo "- **File Size**: ${{ steps.analysis.outputs.file_size || 'Unknown' }} bytes" >> $GITHUB_STEP_SUMMARY
             echo "- **Records**: ${{ steps.analysis.outputs.record_count || 'Unknown' }}" >> $GITHUB_STEP_SUMMARY
@@ -639,9 +639,9 @@ EOF
             echo "- **Error Code**: ${{ steps.scraper.outputs.error_code || 'Unknown' }}" >> $GITHUB_STEP_SUMMARY
           fi
           
-          echo "- **Target**: \`${TARGET}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Mode**: \`${{ needs.setup.outputs.scraper_mode }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Run ID**: \`${{ needs.setup.outputs.run_id }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target**: `${TARGET}`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Mode**: `${{ needs.setup.outputs.scraper_mode }}`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Run ID**: `${{ needs.setup.outputs.run_id }}`" >> $GITHUB_STEP_SUMMARY
           echo "- **Timestamp**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
@@ -745,7 +745,7 @@ EOF
           cat > "${REPORT_FILE}" <<EOF
 # GitHub API Scraper Summary Report
 
-**Run ID**: \`${{ needs.setup.outputs.run_id }}\`  
+**Run ID**: `${{ needs.setup.outputs.run_id }}`  
 **Execution Time**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")  
 **Workflow**: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})  
 **Repository**: ${{ github.repository }}  
@@ -753,9 +753,9 @@ EOF
 
 ## Configuration
 
-- **Scraper Mode**: \`${{ needs.setup.outputs.scraper_mode }}\`
-- **Targets**: \`${{ needs.setup.outputs.target }}\`
-- **Output Format**: \`${{ needs.setup.outputs.output_format }}\`
+- **Scraper Mode**: `${{ needs.setup.outputs.scraper_mode }}`
+- **Targets**: `${{ needs.setup.outputs.target }}`
+- **Output Format**: `${{ needs.setup.outputs.output_format }}`
 - **Include Commits**: ${{ needs.setup.outputs.include_commits }}
 - **Include Issues**: ${{ needs.setup.outputs.include_issues }}
 - **Include Pull Requests**: ${{ needs.setup.outputs.include_pull_requests }}
@@ -802,12 +802,12 @@ EOF
           SCRAPE_STATUS="${{ needs.scrape.result }}"
           AGGREGATE_STATUS="${{ needs.aggregate.result }}"
           
-          if [ "${SETUP_STATUS}" = "success" ] && [ "${SCRAPE_STATUS}" = "success" ] && [ "${AGGREGATE_STATUS}" = "success" ]; then
+          if [ "${SETUP_STATUS}" == "success" ] && [ "${SCRAPE_STATUS}" == "success" ] && [ "${AGGREGATE_STATUS}" == "success" ]; then
             echo "overall_status=success" >> $GITHUB_OUTPUT
             echo "status_emoji=✅" >> $GITHUB_OUTPUT
             echo "status_text=Success" >> $GITHUB_OUTPUT
             echo "status_color=good" >> $GITHUB_OUTPUT
-          elif [ "${SETUP_STATUS}" = "success" ] && [ "${SCRAPE_STATUS}" = "success" ]; then
+          elif [ "${SETUP_STATUS}" == "success" ] && [ "${SCRAPE_STATUS}" == "success" ]; then
             echo "overall_status=partial" >> $GITHUB_OUTPUT
             echo "status_emoji=⚠️" >> $GITHUB_OUTPUT
             echo "status_text=Partial Success" >> $GITHUB_OUTPUT
@@ -921,15 +921,15 @@ EOF
             const body = `
             ## Scraper Failure Report
             
-            **Run ID**: \`${{ needs.setup.outputs.run_id }}\`
+            **Run ID**: `${{ needs.setup.outputs.run_id }}`
             **Workflow**: [View Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
             **Triggered by**: @${{ github.actor }}
             **Timestamp**: ${new Date().toISOString()}
             
             ### Configuration
-            - **Scraper Mode**: \`${{ needs.setup.outputs.scraper_mode }}\`
-            - **Targets**: \`${{ needs.setup.outputs.target }}\`
-            - **Output Format**: \`${{ needs.setup.outputs.output_format }}\`
+            - **Scraper Mode**: `${{ needs.setup.outputs.scraper_mode }}`
+            - **Targets**: `${{ needs.setup.outputs.target }}`
+            - **Output Format**: `${{ needs.setup.outputs.output_format }}`
             
             ### Job Results
             - **Setup**: ${{ needs.setup.result }}
@@ -960,13 +960,13 @@ EOF
           echo "# ${{ steps.status.outputs.status_emoji }} GitHub API Scraper Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Overall Status**: ${{ steps.status.outputs.status_text }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Run ID**: \`${{ needs.setup.outputs.run_id }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Run ID**: `${{ needs.setup.outputs.run_id }}`" >> $GITHUB_STEP_SUMMARY
           echo "**Execution Time**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Configuration" >> $GITHUB_STEP_SUMMARY
-          echo "- **Scraper Mode**: \`${{ needs.setup.outputs.scraper_mode }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Targets**: \`${{ needs.setup.outputs.target }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Output Format**: \`${{ needs.setup.outputs.output_format }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Scraper Mode**: `${{ needs.setup.outputs.scraper_mode }}`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Targets**: `${{ needs.setup.outputs.target }}`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Output Format**: `${{ needs.setup.outputs.output_format }}`" >> $GITHUB_STEP_SUMMARY
           echo "- **Parallel Execution**: ${{ needs.setup.outputs.parallel_execution }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Job Results" >> $GITHUB_STEP_SUMMARY
