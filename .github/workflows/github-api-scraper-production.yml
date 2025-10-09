@@ -212,10 +212,8 @@ jobs:
           
           echo "::notice::Configured scraper execution: ${SCRAPER_MODE} for ${TARGET}"
       
-      - name: Validate secrets and configuration
+      - name: Validate configuration
         run: |
-          # Check GitHub token availability (use github.token for better security)
-          
           # Validate target format based on scraper mode
           TARGET="${{ steps.config.outputs.target }}"
           MODE="${{ steps.config.outputs.scraper_mode }}"
@@ -234,30 +232,6 @@ jobs:
               fi
               ;;
           esac
-          
-          # Check optional notification secrets with graceful handling
-          if [ -n "${{ steps.config.outputs.notification_email }}" ]; then
-            if [ -z "${{ secrets.SMTP_PASSWORD }}" ]; then
-              echo "::warning::Email notifications requested but SMTP_PASSWORD not configured - will skip email notifications"
-            else
-              echo "::notice::Email notifications configured"
-            fi
-          fi
-          
-          if [ -n "${{ steps.config.outputs.slack_webhook }}" ]; then
-            if [ -z "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
-              echo "::warning::Slack notifications requested but SLACK_WEBHOOK_URL not configured - will skip Slack notifications"
-            else
-              echo "::notice::Slack notifications configured"
-            fi
-          fi
-          
-          # Check Linear API key with graceful handling
-          if [ -z "${{ secrets.LINEAR_API_KEY }}" ]; then
-            echo "::warning::LINEAR_API_KEY not configured - Linear integration will be disabled"
-          else
-            echo "::notice::Linear integration available"
-          fi
           
           echo "::notice::Configuration validation completed"
       
@@ -820,7 +794,8 @@ EOF
           fi
       
       - name: Send email notification
-        if: needs.setup.outputs.notification_email != '' && secrets.SMTP_PASSWORD != ''
+        if: needs.setup.outputs.notification_email != ''
+        continue-on-error: true
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -855,7 +830,8 @@ EOF
             <p><em>Generated at $(date -u +"%Y-%m-%d %H:%M:%S UTC")</em></p>
       
       - name: Send Slack notification
-        if: needs.setup.outputs.slack_webhook != '' || secrets.SLACK_WEBHOOK_URL != ''
+        if: needs.setup.outputs.slack_webhook != ''
+        continue-on-error: true
         uses: 8398a7/action-slack@v3
         with:
           status: custom
