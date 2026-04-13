@@ -53,7 +53,7 @@ selenium = [
 ]
 async = [
     "aiohttp>=3.8.0",
-    "aiofiles>=23.0.0",
+    "aiofiles>=25.1.0",
 ]
 database = [
     "sqlalchemy>=2.0.0",
