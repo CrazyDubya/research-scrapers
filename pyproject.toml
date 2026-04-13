@@ -57,7 +57,7 @@ async = [
 ]
 database = [
     "sqlalchemy>=2.0.0",
-    "psycopg2-binary>=2.9.0",
+    "psycopg2-binary>=2.9.11",
 ]
 all = [
     "research-scrapers[dev,selenium,async,database]",
