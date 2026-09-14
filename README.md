@@ -786,3 +786,4 @@ For questions, issues, or feature requests:
   - `void/void.py`
   These files remain in the archived source repo. Rotate the exposed key(s).
 - `docs/arxiv-sanity-lite-DOCUMENTATION.md`, `docs/arxiv-sanity-lite-VISION_v2.md` — documentation files salvaged from [`arxiv-sanity-lite`](https://github.com/CrazyDubya/arxiv-sanity-lite) (stale fork, archived) before its archive.
+- `botsy/` — full tree of [`botsy`](https://github.com/CrazyDubya/botsy) as of its original HEAD `e01a4c47029abd0b1b7bbe9f742440c5e8e8287d` (merged, source archived with full history).
