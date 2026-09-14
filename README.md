@@ -776,3 +776,13 @@ For questions, issues, or feature requests:
 ---
 
 **Happy Scraping! 🕷️📊**
+
+## Provenance
+
+- `experiments/ai-research-collection/` — full tree of [`ai-research-collection`](https://github.com/CrazyDubya/ai-research-collection) as of its original HEAD `02127666ce65f85f12a32277adbca0c2edfeefba` (merged, source archived with full history).
+- NOT imported (contain committed secrets; GitHub push protection refused the blobs):
+  - `void/void-2.py`
+  - `void/void-rev.py`
+  - `void/void.py`
+  These files remain in the archived source repo. Rotate the exposed key(s).
+- `docs/arxiv-sanity-lite-DOCUMENTATION.md`, `docs/arxiv-sanity-lite-VISION_v2.md` — documentation files salvaged from [`arxiv-sanity-lite`](https://github.com/CrazyDubya/arxiv-sanity-lite) (stale fork, archived) before its archive.
