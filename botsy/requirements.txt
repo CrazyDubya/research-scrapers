@@ -82,7 +82,7 @@ pytz>=2023.3
 colorama>=0.4.6
 tqdm>=4.65.0
 click>=8.1.0
-rich>=13.5.0
+rich>=15.0.0
 
 # Optional advanced dependencies (commented out by default)
 # Advanced ML/NLP
