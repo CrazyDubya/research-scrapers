@@ -29,7 +29,7 @@ requests-html>=0.10.0
 # Social Media
 tweepy>=4.14.0
 praw>=7.7.0
-instaloader>=4.9.0
+instaloader>=4.15.3
 
 # Government & Legal
 requests-cache>=1.1.0
