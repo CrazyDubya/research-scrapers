@@ -32,7 +32,7 @@ requests-mock>=1.11.0
 pytest-cov>=4.1.0
 
 # Type hints
-typing-extensions>=4.8.0
+typing-extensions>=4.16.0
 
 # Data validation
 pydantic>=2.5.0  # Optional, for advanced validation
