@@ -31,7 +31,7 @@ pdfminer.six>=20221105
 
 # Progress tracking and resource monitoring
 tqdm>=4.66.0
-psutil>=5.9.0
+psutil>=7.2.2
 
 # Testing dependencies
 pytest>=7.4.0
