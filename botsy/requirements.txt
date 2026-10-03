@@ -10,7 +10,7 @@ lxml>=4.9.0
 # News & Media
 feedparser>=6.0.0
 newspaper3k>=0.2.8
-trafilatura>=1.6.0
+trafilatura>=2.2.0
 
 # Research & Academia
 arxiv>=1.4.0
