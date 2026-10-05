@@ -13,7 +13,7 @@ newspaper3k>=0.2.8
 trafilatura>=2.2.0
 
 # Research & Academia
-arxiv>=1.4.0
+arxiv>=4.0.1
 scholarly>=1.7.11
 crossref-commons>=0.0.7
 
