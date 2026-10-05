@@ -69,7 +69,7 @@ sumy>=0.11.0
 
 # Data visualization
 matplotlib>=3.7.0
-seaborn>=0.12.0
+seaborn>=0.13.2
 plotly>=5.16.0
 
 # Database connectivity
