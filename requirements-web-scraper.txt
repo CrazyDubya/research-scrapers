@@ -35,4 +35,4 @@ pytest-cov>=4.1.0
 typing-extensions>=4.16.0
 
 # Data validation
-pydantic>=2.5.0  # Optional, for advanced validation
+pydantic>=2.13.5  # Optional, for advanced validation
