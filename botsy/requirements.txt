@@ -23,7 +23,7 @@ alpha-vantage>=2.3.0
 pandas-datareader>=0.10.0
 
 # Technology & Software
-PyGithub>=1.59.0
+PyGithub>=2.10.0
 requests-html>=0.10.0
 
 # Social Media
