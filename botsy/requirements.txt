@@ -8,7 +8,7 @@ schedule>=1.2.2
 lxml>=4.9.0
 
 # News & Media
-feedparser>=6.0.0
+feedparser>=6.0.14
 newspaper3k>=0.2.8
 trafilatura>=2.2.0
 
